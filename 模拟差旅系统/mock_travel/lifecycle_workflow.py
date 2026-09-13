@@ -199,7 +199,13 @@ class LifecycleWorkflow:
         reason=None
         reason_match=re.search(r'[，,；;]\s*(?:原因(?:是|为)?\s*[:：]?|因为)\s*(.+)$',query)
         if reason_match and re.search(r'撤回|作废',query[:reason_match.start()]):
-            reason=reason_match.group(1).strip(); query=query[:reason_match.start()].strip()
+            reason=reason_match.group(1).strip()
+            # 原因可以包含“不需要出差”，但尾部的暂缓办理仍是操作指令，不能被截掉。
+            hold=r'(?:不要|不想|别|暂不|暂时不|先不|不能|不需要|勿|暂停|暂缓|取消|放弃|停止|稍后再|之后再|以后再|等会儿?再)'
+            modifiers=r'(?:\s*(?:再|继续|立即|现在|本次|这次|帮我|替我|为我|进行))*\s*'
+            if re.search(hold+modifiers+r'(?:撤回|作废|执行|办理|操作|确认|提交)',reason):
+                return reply('本轮包含取消或暂缓办理的指令，未执行操作，单据状态未改变。请核对后再明确确认。')
+            query=query[:reason_match.start()].strip()
         action_confirmation=re.fullmatch(r'(?:请)?确认(撤回|作废)(?:\s+([^，,；;。!！]+))?[。!！\s]*',query)
         if action_confirmation:
             pending=state.get('pendingAction'); action='withdraw' if action_confirmation[1]=='撤回' else 'void'

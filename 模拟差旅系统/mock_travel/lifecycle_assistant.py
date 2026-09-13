@@ -196,7 +196,9 @@ class LifecycleAssistant:
             state=self._read(cid); doc=self.service.document(reference)
             existing=state['draft']
             if existing:
-                if existing['targetId']==doc['applicationId'] and existing['mode']==mode: return self.view(cid)
+                if existing['targetId']==doc['applicationId'] and existing['mode']==mode:
+                    self._present(cid,state,[existing['targetId']],'正在编辑的单据')
+                    self._write(cid,state); return self.view(cid)
                 raise ServiceError('DRAFT_EXISTS','已有另一份生命周期草稿，请继续编辑或明确放弃后再准备新草稿。',409)
             eligibility=doc['actions'][mode]
             if not eligibility['allowed']: raise ServiceError('ACTION_NOT_ALLOWED',eligibility['reason'],409)
@@ -218,6 +220,7 @@ class LifecycleAssistant:
             draft['payload']=updated; draft['revision']+=1
             draft['differences']=differences(draft['original'],updated)
             draft.pop('fingerprint'); draft['fingerprint']=fingerprint(draft)
+            self._present(cid,state,[draft['targetId']],'正在编辑的单据')
             self._write(cid,state); return self.view(cid)
 
     @staticmethod
@@ -232,7 +235,9 @@ class LifecycleAssistant:
 
     def cancel(self,cid):
         with self.lock:
-            state=self._read(cid); self._editable(state['draft']); state['draft']=None
+            state=self._read(cid); draft=state['draft']; self._editable(draft)
+            if draft: self._present(cid,state,[draft['targetId']],'已取消编辑，单据未改变')
+            state['draft']=None
             self._write(cid,state); return self.view(cid)
 
     def _existing(self,cid,body):

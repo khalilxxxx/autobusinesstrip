@@ -1,4 +1,5 @@
 """卡片绑定每轮对话；语义操作须确认，不能绕过版本检查。"""
+import pytest
 from test_lifecycle import create, complete, operation, approval, payload
 from test_lifecycle_assistant import env
 from test_lifecycle_workflow import turn
@@ -74,3 +75,60 @@ def test_card_action_proposal_is_read_only_and_semantic_confirmation_uses_reason
     final=app.state.lifecycle.document(a['applicationId'])
     assert final['status']=='S100' and final['history'][-1]['reason']=='行程取消'
     assert c.get(url).json()['pendingAction'] is None
+
+
+@pytest.mark.parametrize('query',[
+    '确认作废，原因：客户取消会议；先不要作废',
+    '确认作废，原因：客户取消会议。不过先不要执行。',
+    '确认作废，因为客户取消会议，但暂缓办理',
+    '确认作废，原因：客户取消会议，取消本次操作',
+    '确认作废，原因：客户取消会议，稍后再执行',
+])
+def test_reason_suffix_cannot_hide_a_request_to_hold_the_operation(env,query):
+    app,c,cid,url=env; service=app.state.lifecycle
+    doc=complete(service,create(service))
+    turn(env,'作废这张',dict(intent='VOID',reference=doc['applicationId']))
+    before=service.document(doc['applicationId'])
+    result=turn(env,query,dict(intent='CONFIRM'))
+    after=service.document(doc['applicationId'])
+    assert after['status']=='S004'
+    assert after['version']==before['version'] and after['history']==before['history']
+    assert c.get(url).json()['lastReceipt'] is None
+    assert '未执行' in result['reply']
+
+
+def test_confirmation_reason_can_include_not_needing_a_trip(env):
+    app,c,cid,url=env; service=app.state.lifecycle
+    doc=complete(service,create(service))
+    turn(env,'作废这张',dict(intent='VOID',reference=doc['applicationId']))
+    turn(env,'确认作废，原因：客户取消会议，不需要出差',dict(intent='HELP'))
+    after=service.document(doc['applicationId'])
+    assert after['status']=='S100'
+    assert after['history'][-1]['reason']=='客户取消会议，不需要出差'
+
+
+@pytest.mark.parametrize('query,command,expected_revision',[
+    ('事由改成客户研讨',dict(intent='EDIT',patch={'remark':'客户研讨'}),2),
+    ('继续变更这张',dict(intent='CHANGE'),1),
+    ('取消编辑',dict(intent='CANCEL'),None),
+])
+def test_edit_followups_show_the_target_card_below_the_current_reply(env,query,command,expected_revision):
+    app,c,cid,url=env; service=app.state.lifecycle; store=app.state.assistant_manager.store
+    doc=complete(service,create(service))
+    original=doc['request']['remark']
+    first,_=store.start_turn(cid,'变更这张','prepare-card')
+    prepared=turn(env,'变更这张',dict(intent='CHANGE',reference=doc['applicationId']))
+    store.finish(first,prepared['reply'],'succeeded',state={})
+    current,_=store.start_turn(cid,query,'followup-card')
+    result=turn(env,query,command)
+    store.finish(current,result['reply'],'succeeded',state={})
+    view=c.get(url).json()
+    cards={group['turnId']:group['documents'] for group in view['cardGroups']}
+    assert current in cards
+    assert cards[first][0]['applicationId']==cards[current][0]['applicationId']==doc['applicationId']
+    assert cards[current][0]['request']['remark']==original
+    if expected_revision is None:
+        assert view['draft'] is None
+    else:
+        assert view['draft']['revision']==expected_revision
+        if expected_revision==2: assert view['draft']['payload']['remark']=='客户研讨'
