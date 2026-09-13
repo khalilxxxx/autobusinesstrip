@@ -1,0 +1,51 @@
+构建重复性：PASS
+DSL SHA256：e7b75d0b53639c8f1ea7ec8af40a8dcf129cc0616b4a6e0cc067abd4a8e13a55
+test_air_business_not_downgraded (test_demo.DemoTests) ... ok
+test_all_21_transports (test_demo.DemoTests) ... ok
+test_all_50_cities (test_demo.DemoTests) ... ok
+test_ambiguous_city (test_demo.DemoTests) ... ok
+test_bad_http_no_success (test_demo.DemoTests) ... ok
+test_city_payload_quotes_newlines (test_demo.DemoTests) ... ok
+test_context_uses_api (test_demo.DemoTests) ... ok
+test_failed_retry_new_id (test_demo.DemoTests) ... ok
+test_kunshan (test_demo.DemoTests) ... ok
+test_missing_city (test_demo.DemoTests) ... ok
+test_n12_rejects_bad_fingerprint (test_demo.DemoTests) ... ok
+test_new_city_alias_default_return (test_demo.DemoTests) ... ok
+test_nonstandalone_rejected (test_demo.DemoTests) ... ok
+test_pending_recovery_rejected (test_demo.DemoTests) ... ok
+test_receipt_not_found_same_id_create (test_demo.DemoTests) ... ok
+test_receipt_success_replayed (test_demo.DemoTests) ... ok
+test_repeat_confirm_replays (test_demo.DemoTests) ... ok
+test_stale_confirmation_rejected (test_demo.DemoTests) ... ok
+test_submit_payload_success (test_demo.DemoTests) ... ok
+test_tonglu (test_demo.DemoTests) ... ok
+test_unknown_reuses_id (test_demo.DemoTests) ... ok
+test_wrong_request_receipt_unknown (test_demo.DemoTests) ... ok
+test_all_selectors_and_signatures (test_dsl.DSLTests) ... ok
+test_edge_handles_and_reachable (test_dsl.DSLTests) ... ok
+test_http_auth_and_body (test_dsl.DSLTests) ... ok
+test_no_secrets_in_prompts (test_dsl.DSLTests) ... ok
+test_single_state_writer (test_dsl.DSLTests) ... ok
+test_complete_route_failure_retry_success (test_graph.GraphTests) ... ok
+test_complete_route_success_repeat_and_ids (test_graph.GraphTests) ... ok
+test_http_rejection_message_preserved (test_graph.GraphTests) ... ok
+test_new_version_blocks_old_confirmation (test_graph.GraphTests) ... ok
+test_repair_and_recovery_are_preserved (test_graph.GraphTests) ... ok
+test_wrapped_404_continues_same_request (test_regressions.ReceiptAdapterTests) ... ok
+test_wrapped_success_is_recognized (test_regressions.ReceiptAdapterTests) ... ok
+test_city_http_failure_no_stale_maps (test_regressions.RegressionTests) ... ok
+test_city_range_remains_in_repair_context (test_regressions.RegressionTests) ... ok
+test_context_http_failure_no_fake_data (test_regressions.RegressionTests) ... ok
+test_failed_retry_loss_retransmits_same_next_id (test_regressions.RegressionTests) ... ok
+test_failure_receipt_query_is_definitive (test_regressions.RegressionTests) ... ok
+test_missing_fields_rejected (test_regressions.RegressionTests) ... ok
+test_network_unknown_and_passthrough (test_regressions.RegressionTests) ... ok
+test_recommendation_and_recheck_keep_http_mapping (test_regressions.RegressionTests) ... ok
+test_repeat_confirm_revalidated_draft_keeps_fingerprint (test_regressions.RegressionTests) ... ok
+test_short_term_body (test_regressions.RegressionTests) ... ok
+
+----------------------------------------------------------------------
+Ran 44 tests in 4.402s
+
+OK

@@ -1,0 +1,45 @@
+FFFFF
+======================================================================
+FAIL: test_all_selectors_and_signatures (test_dsl.DSLTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_dsl.py", line 11, in setUp
+    self.assertTrue((ROOT/'差旅申请助手-完整Demo-可导入.yml').exists(),'尚未生成API接入DSL')
+AssertionError: False is not true : 尚未生成API接入DSL
+
+======================================================================
+FAIL: test_edge_handles_and_reachable (test_dsl.DSLTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_dsl.py", line 11, in setUp
+    self.assertTrue((ROOT/'差旅申请助手-完整Demo-可导入.yml').exists(),'尚未生成API接入DSL')
+AssertionError: False is not true : 尚未生成API接入DSL
+
+======================================================================
+FAIL: test_http_auth_and_body (test_dsl.DSLTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_dsl.py", line 11, in setUp
+    self.assertTrue((ROOT/'差旅申请助手-完整Demo-可导入.yml').exists(),'尚未生成API接入DSL')
+AssertionError: False is not true : 尚未生成API接入DSL
+
+======================================================================
+FAIL: test_no_secrets_in_prompts (test_dsl.DSLTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_dsl.py", line 11, in setUp
+    self.assertTrue((ROOT/'差旅申请助手-完整Demo-可导入.yml').exists(),'尚未生成API接入DSL')
+AssertionError: False is not true : 尚未生成API接入DSL
+
+======================================================================
+FAIL: test_single_state_writer (test_dsl.DSLTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_dsl.py", line 11, in setUp
+    self.assertTrue((ROOT/'差旅申请助手-完整Demo-可导入.yml').exists(),'尚未生成API接入DSL')
+AssertionError: False is not true : 尚未生成API接入DSL
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+FAILED (failures=5)

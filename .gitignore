@@ -1,0 +1,19 @@
+# 运行数据、依赖与私密配置不进入 Git
+.DS_Store
+.venv/
+node_modules/
+dist/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.tsbuildinfo
+.local/
+data/
+.env
+.env.*
+!.env.example
+.worktrees/
+.superpowers/
+.baseline-backups/
+# 该历史示例含有本机连接信息，保留在私密备份
+/模拟差旅系统/examples/dify-config.json

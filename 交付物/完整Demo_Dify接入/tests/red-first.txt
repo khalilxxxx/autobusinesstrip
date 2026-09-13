@@ -1,0 +1,365 @@
+test_air_business_not_downgraded (test_demo.DemoTests) ... FAIL
+test_all_21_transports (test_demo.DemoTests) ... FAIL
+test_all_50_cities (test_demo.DemoTests) ... FAIL
+test_ambiguous_city (test_demo.DemoTests) ... FAIL
+test_bad_http_no_success (test_demo.DemoTests) ... FAIL
+test_city_payload_quotes_newlines (test_demo.DemoTests) ... FAIL
+test_context_uses_api (test_demo.DemoTests) ... FAIL
+test_failed_retry_new_id (test_demo.DemoTests) ... FAIL
+test_kunshan (test_demo.DemoTests) ... FAIL
+test_missing_city (test_demo.DemoTests) ... FAIL
+test_n12_rejects_bad_fingerprint (test_demo.DemoTests) ... FAIL
+test_new_city_alias_default_return (test_demo.DemoTests) ... FAIL
+test_nonstandalone_rejected (test_demo.DemoTests) ... FAIL
+test_pending_recovery_rejected (test_demo.DemoTests) ... FAIL
+test_receipt_not_found_same_id_create (test_demo.DemoTests) ... FAIL
+test_receipt_success_replayed (test_demo.DemoTests) ... FAIL
+test_repeat_confirm_replays (test_demo.DemoTests) ... FAIL
+test_stale_confirmation_rejected (test_demo.DemoTests) ... FAIL
+test_submit_payload_success (test_demo.DemoTests) ... FAIL
+test_tonglu (test_demo.DemoTests) ... FAIL
+test_unknown_reuses_id (test_demo.DemoTests) ... FAIL
+test_wrong_request_receipt_unknown (test_demo.DemoTests) ... FAIL
+
+======================================================================
+FAIL: test_air_business_not_downgraded (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 74, in test_air_business_not_downgraded
+    _,r=checked(transport='飞机商务舱');self.assertTrue(any(x['code']=='TRANSPORT_UNAVAILABLE' for x in json.loads(r['checked_json'])['issues']))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_all_21_transports (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 72, in test_all_21_transports
+    _,r=checked(transport=t['value']);self.assertEqual(json.loads(r['checked_json'])['draft']['trips'][0]['resolved_transport']['code'],t['value'])
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_all_50_cities (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 61, in test_all_50_cities
+    name=city['data']['cityName'];_,r=checked(name);trip=json.loads(r['checked_json'])['draft']['trips'][0];self.assertEqual(trip['resolved_to']['code'],city['data']['cityId'])
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_ambiguous_city (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 69, in test_ambiguous_city
+    _,r=checked('深圳',overrides={'深圳':CAT['query_cities']('深圳')+CAT['query_cities']('苏州')});c=json.loads(r['checked_json']);self.assertTrue(any('多个' in x['question'] for x in c['issues']));self.assertEqual(c['draft']['trips'][0]['resolved_to']['code'],'')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_bad_http_no_success (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 98, in test_bad_http_no_success
+    r=json.loads(receipt(gate(),http=status)['result_json']);self.assertNotEqual(r['state']['flow_state'],'SUBMITTED')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 46, in gate
+    if s is None:s,p,c,ctx=ready()
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_city_payload_quotes_newlines (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 76, in test_city_payload_quotes_newlines
+    c=candidate('城市"\n名');q=run('C01',candidate_json=dump(c),context_json=context()['context_json']);self.assertIn('城市"\n名',json.loads(q['body'])['queries'])
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_context_uses_api (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 56, in test_context_uses_api
+    c=json.loads(context()['context_json']);self.assertEqual(c['employee']['name'],'演示员工');self.assertEqual(len(c['transports']),21);self.assertEqual(c['cities'],[])
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_failed_retry_new_id (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 88, in test_failed_retry_new_id
+    s,p,c,ctx=ready();g=gate(s,p,c,ctx);r=json.loads(receipt(g,'FAILED','MOCK_SUBMIT_FAILED')['result_json']);self.assertEqual(r['state']['last_submission']['status'],'FAILED');self.assertIn('管理员设置的失败说明',r['reply_text']);g2=gate(r['state'],p,c,ctx);self.assertNotEqual(g['request_id'],g2['request_id']);run('N12',result_json=dump(r))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_kunshan (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 63, in test_kunshan
+    _,r=checked('昆山');d=json.loads(r['checked_json'])['draft']['trips'][0]['resolved_to'];self.assertEqual((d['place'],d['name'],d['code'],d['mapped']),('昆山','苏州','DEMO_SUZHOU',True))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_missing_city (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 67, in test_missing_city
+    _,r=checked('不存在城市');self.assertTrue(any(x['code']=='CITY_UNKNOWN' for x in json.loads(r['checked_json'])['issues']))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_n12_rejects_bad_fingerprint (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 102, in test_n12_rejects_bad_fingerprint
+    s,p,c,ctx=ready();s['confirmation']['fingerprint']='bad'
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_new_city_alias_default_return (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 58, in test_new_city_alias_default_return
+    _,r=checked();c=json.loads(r['checked_json']);self.assertEqual(c['issues'],[]);self.assertEqual(c['draft']['trips'][0]['resolved_to']['code'],'DEMO_SHENZHEN');self.assertEqual(c['draft']['trips'][1]['resolved_to']['code'],'330100')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_nonstandalone_rejected (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 82, in test_nonstandalone_rejected
+    s,p,c,ctx=ready();p['query']='确认提交并改事由';self.assertEqual(gate(s,p,c,ctx)['route'],'RESULT')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_pending_recovery_rejected (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 84, in test_pending_recovery_rejected
+    s,p,c,ctx=ready();s['dialogue']['recovery']={'id':'pending'};self.assertEqual(gate(s,p,c,ctx)['route'],'RESULT')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_receipt_not_found_same_id_create (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 92, in test_receipt_not_found_same_id_create
+    g=gate();r=run('Q01',gate_json=g['gate_json'],api_body=envelope({},'SUBMISSION_NOT_FOUND'),status_code=404);self.assertEqual(r['route'],'CREATE')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 46, in gate
+    if s is None:s,p,c,ctx=ready()
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_receipt_success_replayed (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 94, in test_receipt_success_replayed
+    g=gate();resp={'code':'SUCCESS','data':{'status':'SUCCEEDED','clientRequestId':g['request_id'],'result':{'code':'SUCCESS','message':{},'data':{'action':'AI_CREATE','demoOnly':True,'clientRequestId':g['request_id'],'applicationId':'A-Q','applicationNo':'NO-Q','createdAt':'date'}}}}
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 46, in gate
+    if s is None:s,p,c,ctx=ready()
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_repeat_confirm_replays (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 86, in test_repeat_confirm_replays
+    s,p,c,ctx=ready();g=gate(s,p,c,ctx);s=json.loads(receipt(g)['result_json'])['state'];r=gate(s,p,c,ctx);self.assertEqual(r['route'],'RESULT');self.assertIn('API-2026-001',r['result_json'])
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_stale_confirmation_rejected (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 80, in test_stale_confirmation_rejected
+    s,p,c,ctx=ready();s['confirmation']['revision']=0;g=gate(s,p,c,ctx);self.assertEqual(g['route'],'RESULT')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_submit_payload_success (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 78, in test_submit_payload_success
+    g=gate();self.assertEqual(g['route'],'HTTP');b=json.loads(g['body']);self.assertEqual(b['remark'],'拜访"新客户"\n沟通方案');self.assertEqual(b['trips'][0]['tool'],'火车-二等座');self.assertEqual(b['departmentId'],'DEMO_DEPT_001');r=json.loads(receipt(g)['result_json']);self.assertEqual(r['state']['last_submission']['application_no'],'API-2026-001');self.assertEqual(r['state']['flow_state'],'SUBMITTED');run('N12',result_json=dump(r))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 46, in gate
+    if s is None:s,p,c,ctx=ready()
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_tonglu (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 65, in test_tonglu
+    _,r=checked('桐庐');d=json.loads(r['checked_json'])['draft']['trips'][0]['resolved_to'];self.assertEqual((d['name'],d['code']),('桐庐','330122'))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_unknown_reuses_id (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 90, in test_unknown_reuses_id
+    s,p,c,ctx=ready();g=gate(s,p,c,ctx);r=run('S01',gate_json=g['gate_json'],api_body='',status_code=0);state=json.loads(r['result_json'])['state'];self.assertEqual(state['last_submission']['status'],'UNKNOWN');self.assertEqual(gate(state,p,c,ctx)['request_id'],g['request_id']);run('N12',result_json=r['result_json'])
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+======================================================================
+FAIL: test_wrong_request_receipt_unknown (test_demo.DemoTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 100, in test_wrong_request_receipt_unknown
+    g=gate();r=run('S01',gate_json=g['gate_json'],api_body=envelope({'applicationNo':'fake','clientRequestId':'other'}),status_code=200);self.assertEqual(json.loads(r['result_json'])['state']['last_submission']['status'],'UNKNOWN')
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 46, in gate
+    if s is None:s,p,c,ctx=ready()
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 41, in ready
+    ctx,check=checked(); s=json.loads(ctx['state_json']);c=json.loads(check['checked_json']);d=c['draft']
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 31, in checked
+    ctx=context(); c=candidate(to,transport)
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 23, in context
+    return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_demo.py", line 18, in run
+    assert set(kwargs) <= set(inspect.signature(f).parameters), '节点尚未接入API参数：' + name
+AssertionError: 节点尚未接入API参数：N02
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.028s
+
+FAILED (failures=22)

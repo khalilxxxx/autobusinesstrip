@@ -1,0 +1,7 @@
+{
+  "N04": "def main(parsed, query: str, state_json: str, context_json: str = '') -> dict:\n    return primary(parsed, query, state_json, context_json)\n",
+  "N05P": "def main(plan_json: str) -> dict:\n    check_final(plan_json, primary_only=True)\n    return {\"plan_json\": plan_json}\n",
+  "N05U": "def main(plan_json: str) -> dict:\n    plan = check_final(plan_json)\n    return {\"plan_json\": plan_json, \"action\": plan[\"action\"], \"diagnostics_json\": encode(plan[\"diagnostics\"])}\n",
+  "R02": "def main(parsed, query: str, state_json: str, context_json: str, repair_input_json: str) -> dict:\n    return revalidate(parsed, query, state_json, context_json, repair_input_json)\n",
+  "R03": "def main(query: str, state_json: str, context_json: str, repair_input_json: str) -> dict:\n    return recover(query, state_json, context_json, repair_input_json)\n"
+}

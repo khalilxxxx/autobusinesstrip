@@ -1,0 +1,27 @@
+FF..........
+======================================================================
+FAIL: test_wrapped_404_continues_same_request (test_regressions.ReceiptAdapterTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_regressions.py", line 42, in test_wrapped_404_continues_same_request
+    r=run('Q01',gate_json=g['gate_json'],api_body=dump(body),status_code=200);self.assertEqual(r['route'],'CREATE')
+AssertionError: 'RESULT' != 'CREATE'
+- RESULT
++ CREATE
+
+
+======================================================================
+FAIL: test_wrapped_success_is_recognized (test_regressions.ReceiptAdapterTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_regressions.py", line 45, in test_wrapped_success_is_recognized
+    r=run('Q01',gate_json=g['gate_json'],api_body=dump({'code':'SUCCESS','data':{'httpStatus':200,'result':inner}}),status_code=200);self.assertEqual(json.loads(r['result_json'])['state']['last_submission']['status'],'SUCCEEDED')
+AssertionError: 'UNKNOWN' != 'SUCCEEDED'
+- UNKNOWN
++ SUCCEEDED
+
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.054s
+
+FAILED (failures=2)

@@ -1,0 +1,23 @@
+{
+  "applicantId": "DEMO_EMP_001",
+  "departmentId": "DEMO_DEPT_001",
+  "payerCompanyId": "DEMO_COMPANY_001",
+  "remark": "赴桐庐拜访客户",
+  "dqydbg": null,
+  "trips": [
+    {
+      "dateFrom": "2026-09-12",
+      "dateTo": "2026-09-12",
+      "cityFrom": "330100",
+      "cityTo": "330122",
+      "tool": "火车-二等座"
+    },
+    {
+      "dateFrom": "2026-09-13",
+      "dateTo": "2026-09-13",
+      "cityFrom": "330122",
+      "cityTo": "330100",
+      "tool": "火车-二等座"
+    }
+  ]
+}

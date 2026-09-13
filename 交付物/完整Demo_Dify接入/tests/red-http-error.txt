@@ -1,0 +1,13 @@
+..F..
+======================================================================
+FAIL: test_http_rejection_message_preserved (test_graph.GraphTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/tests/test_graph.py", line 17, in test_http_rejection_message_preserved
+    h=Harness();s,_=self.start(h);h.mode='HTTP_422';s,answer=h.execute('确认提交',event(intent='SUBMIT'),s);self.assertIn('城市字段格式错误',answer);self.assertEqual(s['last_submission']['status'],'UNKNOWN')
+AssertionError: '城市字段格式错误' not found in '暂时无法确认模拟创建结果。草稿与请求号已保留；请稍后再次确认，系统会先查询同一请求号的回执。'
+
+----------------------------------------------------------------------
+Ran 5 tests in 3.012s
+
+FAILED (failures=1)

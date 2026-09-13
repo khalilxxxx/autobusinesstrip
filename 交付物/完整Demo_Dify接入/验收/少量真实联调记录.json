@@ -1,0 +1,1450 @@
+{
+  "date": "2026-09-12",
+  "source": "真实本地助手 API / Dify Cloud 已发布版本3 / 受限HTTPS网关 / 本地模拟API",
+  "scope": "两份草稿的少量真实联调验收，不是批量测试",
+  "appId": "9f14a8eb-d849-41cb-8dbd-b66829b17edb",
+  "results": {
+    "demo-live-step1.json": {
+      "id": "511ef496a23d49e4b12ff8d2faf7d1ce",
+      "title": "我想从杭州东站去深圳北站出差拜访客户。",
+      "createdAt": "2026-09-12T18:19:45+08:00",
+      "updatedAt": "2026-09-12T18:19:58+08:00",
+      "messages": [
+        {
+          "id": "71f855970db14cad86195dc46d31de16",
+          "role": "user",
+          "content": "我想从杭州东站去深圳北站出差拜访客户。",
+          "createdAt": "2026-09-12T18:19:45+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "642c75765b9441be887c739085c65723",
+          "role": "assistant",
+          "content": "### 已记录差旅草稿（Demo）\n\n事由：拜访客户\n第1段：杭州 → 深圳；出发日期：待补充；交通：飞机-经济舱\n\n默认与建议：\n- 第1段交通为系统建议：飞机-经济舱（杭州与深圳距离较远，建议乘坐飞机经济舱）；可直接修改。\n\n请继续补充：\n1. 第1段出发日期尚未确定，请补充。\n2. 请补充从深圳返回本申请起点杭州的日期和安排；整张申请必须闭环。\n\n可以直接回答，也可以一次补充多项；回复“查看确认单”可查看完整草稿。",
+          "createdAt": "2026-09-12T18:19:58+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "COLLECTING",
+        "canSubmit": false,
+        "draftId": "DEMO-DRAFT-2731743c7337e13b",
+        "revision": 1,
+        "fingerprint": "",
+        "lastSubmission": null,
+        "pending": [
+          {
+            "code": "MISSING_RETURN",
+            "field": "depart_date",
+            "id": "MISSING_RETURN:RETURN:depart_date",
+            "priority": 8,
+            "question": "请补充从深圳返回本申请起点杭州的日期和安排；整张申请必须闭环。",
+            "target": "RETURN"
+          },
+          {
+            "code": "DATE_MISSING",
+            "field": "depart_date",
+            "id": "DATE_MISSING:T1:depart_date",
+            "priority": 10,
+            "question": "第1段出发日期尚未确定，请补充。",
+            "target": "T1"
+          }
+        ]
+      },
+      "activeTurnId": null
+    },
+    "demo-live-step2.json": {
+      "id": "511ef496a23d49e4b12ff8d2faf7d1ce",
+      "title": "我想从杭州东站去深圳北站出差拜访客户。",
+      "createdAt": "2026-09-12T18:19:45+08:00",
+      "updatedAt": "2026-09-12T18:20:39+08:00",
+      "messages": [
+        {
+          "id": "71f855970db14cad86195dc46d31de16",
+          "role": "user",
+          "content": "我想从杭州东站去深圳北站出差拜访客户。",
+          "createdAt": "2026-09-12T18:19:45+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "642c75765b9441be887c739085c65723",
+          "role": "assistant",
+          "content": "### 已记录差旅草稿（Demo）\n\n事由：拜访客户\n第1段：杭州 → 深圳；出发日期：待补充；交通：飞机-经济舱\n\n默认与建议：\n- 第1段交通为系统建议：飞机-经济舱（杭州与深圳距离较远，建议乘坐飞机经济舱）；可直接修改。\n\n请继续补充：\n1. 第1段出发日期尚未确定，请补充。\n2. 请补充从深圳返回本申请起点杭州的日期和安排；整张申请必须闭环。\n\n可以直接回答，也可以一次补充多项；回复“查看确认单”可查看完整草稿。",
+          "createdAt": "2026-09-12T18:19:58+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "af2177680d5743ae9cd51f7698521487",
+          "role": "user",
+          "content": "2026年10月18日出发，10月20日从深圳回杭州。两段都是飞机经济舱，普通出差。",
+          "createdAt": "2026-09-12T18:20:28+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "4eb82c461c724f7992047cf52a97d540",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：拜访客户\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 深圳 | 2026-10-18 | 2026-10-18 | 飞机-经济舱 |\n| 2 | 深圳 | 杭州 | 2026-10-20 | 2026-10-20 | 飞机-经济舱 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:20:39+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "READY_TO_CONFIRM",
+        "canSubmit": true,
+        "draftId": "DEMO-DRAFT-2731743c7337e13b",
+        "revision": 2,
+        "fingerprint": "f5811da485d4f65c64a65d6c4b442170a6f9e82b49ecb575c83e2f577703ac09",
+        "lastSubmission": null,
+        "pending": []
+      },
+      "activeTurnId": null
+    },
+    "demo-live-step3.json": {
+      "id": "511ef496a23d49e4b12ff8d2faf7d1ce",
+      "title": "我想从杭州东站去深圳北站出差拜访客户。",
+      "createdAt": "2026-09-12T18:19:45+08:00",
+      "updatedAt": "2026-09-12T18:22:18+08:00",
+      "messages": [
+        {
+          "id": "71f855970db14cad86195dc46d31de16",
+          "role": "user",
+          "content": "我想从杭州东站去深圳北站出差拜访客户。",
+          "createdAt": "2026-09-12T18:19:45+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "642c75765b9441be887c739085c65723",
+          "role": "assistant",
+          "content": "### 已记录差旅草稿（Demo）\n\n事由：拜访客户\n第1段：杭州 → 深圳；出发日期：待补充；交通：飞机-经济舱\n\n默认与建议：\n- 第1段交通为系统建议：飞机-经济舱（杭州与深圳距离较远，建议乘坐飞机经济舱）；可直接修改。\n\n请继续补充：\n1. 第1段出发日期尚未确定，请补充。\n2. 请补充从深圳返回本申请起点杭州的日期和安排；整张申请必须闭环。\n\n可以直接回答，也可以一次补充多项；回复“查看确认单”可查看完整草稿。",
+          "createdAt": "2026-09-12T18:19:58+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "af2177680d5743ae9cd51f7698521487",
+          "role": "user",
+          "content": "2026年10月18日出发，10月20日从深圳回杭州。两段都是飞机经济舱，普通出差。",
+          "createdAt": "2026-09-12T18:20:28+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "4eb82c461c724f7992047cf52a97d540",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：拜访客户\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 深圳 | 2026-10-18 | 2026-10-18 | 飞机-经济舱 |\n| 2 | 深圳 | 杭州 | 2026-10-20 | 2026-10-20 | 飞机-经济舱 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:20:39+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "46679cbdc08e427aa326fdf417b56c97",
+          "role": "user",
+          "content": "把出差事由改为深圳项目验收，其他行程安排不变。",
+          "createdAt": "2026-09-12T18:22:11+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "5faadaf105634bb388bfed35ba9a81d5",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：深圳项目验收\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 深圳 | 2026-10-18 | 2026-10-18 | 飞机-经济舱 |\n| 2 | 深圳 | 杭州 | 2026-10-20 | 2026-10-20 | 飞机-经济舱 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:22:18+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "READY_TO_CONFIRM",
+        "canSubmit": true,
+        "draftId": "DEMO-DRAFT-2731743c7337e13b",
+        "revision": 3,
+        "fingerprint": "6c50308971b5439a4c7bc0494c710efa1865e49d76bf795a71afe69c2bc32de9",
+        "lastSubmission": null,
+        "pending": []
+      },
+      "activeTurnId": null
+    },
+    "demo-live-step4-submit.json": {
+      "id": "511ef496a23d49e4b12ff8d2faf7d1ce",
+      "title": "我想从杭州东站去深圳北站出差拜访客户。",
+      "createdAt": "2026-09-12T18:19:45+08:00",
+      "updatedAt": "2026-09-12T18:23:36+08:00",
+      "messages": [
+        {
+          "id": "71f855970db14cad86195dc46d31de16",
+          "role": "user",
+          "content": "我想从杭州东站去深圳北站出差拜访客户。",
+          "createdAt": "2026-09-12T18:19:45+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "642c75765b9441be887c739085c65723",
+          "role": "assistant",
+          "content": "### 已记录差旅草稿（Demo）\n\n事由：拜访客户\n第1段：杭州 → 深圳；出发日期：待补充；交通：飞机-经济舱\n\n默认与建议：\n- 第1段交通为系统建议：飞机-经济舱（杭州与深圳距离较远，建议乘坐飞机经济舱）；可直接修改。\n\n请继续补充：\n1. 第1段出发日期尚未确定，请补充。\n2. 请补充从深圳返回本申请起点杭州的日期和安排；整张申请必须闭环。\n\n可以直接回答，也可以一次补充多项；回复“查看确认单”可查看完整草稿。",
+          "createdAt": "2026-09-12T18:19:58+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "af2177680d5743ae9cd51f7698521487",
+          "role": "user",
+          "content": "2026年10月18日出发，10月20日从深圳回杭州。两段都是飞机经济舱，普通出差。",
+          "createdAt": "2026-09-12T18:20:28+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "4eb82c461c724f7992047cf52a97d540",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：拜访客户\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 深圳 | 2026-10-18 | 2026-10-18 | 飞机-经济舱 |\n| 2 | 深圳 | 杭州 | 2026-10-20 | 2026-10-20 | 飞机-经济舱 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:20:39+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "46679cbdc08e427aa326fdf417b56c97",
+          "role": "user",
+          "content": "把出差事由改为深圳项目验收，其他行程安排不变。",
+          "createdAt": "2026-09-12T18:22:11+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "5faadaf105634bb388bfed35ba9a81d5",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：深圳项目验收\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 深圳 | 2026-10-18 | 2026-10-18 | 飞机-经济舱 |\n| 2 | 深圳 | 杭州 | 2026-10-20 | 2026-10-20 | 飞机-经济舱 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:22:18+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "7c20fcca762f4616bc04a9db346bb050",
+          "role": "user",
+          "content": "确认提交",
+          "createdAt": "2026-09-12T18:23:23+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "f3843d844ced4845a8efebcf0427a577",
+          "role": "assistant",
+          "content": "### 模拟提交成功\n\n模拟单号：**DEMO-CL-20260912-4A393598D9A8**\n\n差旅日期：2026-10-18 至 2026-10-20\n\n已创建本地模拟单据，可在模拟系统中查看。",
+          "createdAt": "2026-09-12T18:23:36+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "SUBMITTED",
+        "canSubmit": false,
+        "draftId": "DEMO-DRAFT-2731743c7337e13b",
+        "revision": 3,
+        "fingerprint": "6c50308971b5439a4c7bc0494c710efa1865e49d76bf795a71afe69c2bc32de9",
+        "lastSubmission": {
+          "status": "SUCCEEDED",
+          "applicationId": "MOCK-APP-f8d10a73eac34533afbca90b28e79842",
+          "applicationNo": "DEMO-CL-20260912-4A393598D9A8",
+          "requestId": "DEMO-REQ-b0c02601b8f82838a9a8f0768cfa12feff46974d",
+          "message": "本地模拟系统已创建申请。"
+        },
+        "pending": []
+      },
+      "activeTurnId": null
+    },
+    "demo-live-step5-duplicate.json": {
+      "id": "511ef496a23d49e4b12ff8d2faf7d1ce",
+      "title": "我想从杭州东站去深圳北站出差拜访客户。",
+      "createdAt": "2026-09-12T18:19:45+08:00",
+      "updatedAt": "2026-09-12T18:24:18+08:00",
+      "messages": [
+        {
+          "id": "71f855970db14cad86195dc46d31de16",
+          "role": "user",
+          "content": "我想从杭州东站去深圳北站出差拜访客户。",
+          "createdAt": "2026-09-12T18:19:45+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "642c75765b9441be887c739085c65723",
+          "role": "assistant",
+          "content": "### 已记录差旅草稿（Demo）\n\n事由：拜访客户\n第1段：杭州 → 深圳；出发日期：待补充；交通：飞机-经济舱\n\n默认与建议：\n- 第1段交通为系统建议：飞机-经济舱（杭州与深圳距离较远，建议乘坐飞机经济舱）；可直接修改。\n\n请继续补充：\n1. 第1段出发日期尚未确定，请补充。\n2. 请补充从深圳返回本申请起点杭州的日期和安排；整张申请必须闭环。\n\n可以直接回答，也可以一次补充多项；回复“查看确认单”可查看完整草稿。",
+          "createdAt": "2026-09-12T18:19:58+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "af2177680d5743ae9cd51f7698521487",
+          "role": "user",
+          "content": "2026年10月18日出发，10月20日从深圳回杭州。两段都是飞机经济舱，普通出差。",
+          "createdAt": "2026-09-12T18:20:28+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "4eb82c461c724f7992047cf52a97d540",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：拜访客户\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 深圳 | 2026-10-18 | 2026-10-18 | 飞机-经济舱 |\n| 2 | 深圳 | 杭州 | 2026-10-20 | 2026-10-20 | 飞机-经济舱 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:20:39+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "46679cbdc08e427aa326fdf417b56c97",
+          "role": "user",
+          "content": "把出差事由改为深圳项目验收，其他行程安排不变。",
+          "createdAt": "2026-09-12T18:22:11+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "5faadaf105634bb388bfed35ba9a81d5",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：深圳项目验收\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 深圳 | 2026-10-18 | 2026-10-18 | 飞机-经济舱 |\n| 2 | 深圳 | 杭州 | 2026-10-20 | 2026-10-20 | 飞机-经济舱 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:22:18+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "7c20fcca762f4616bc04a9db346bb050",
+          "role": "user",
+          "content": "确认提交",
+          "createdAt": "2026-09-12T18:23:23+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "f3843d844ced4845a8efebcf0427a577",
+          "role": "assistant",
+          "content": "### 模拟提交成功\n\n模拟单号：**DEMO-CL-20260912-4A393598D9A8**\n\n差旅日期：2026-10-18 至 2026-10-20\n\n已创建本地模拟单据，可在模拟系统中查看。",
+          "createdAt": "2026-09-12T18:23:36+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "f99e6769c5fb43ea8bef436f8a071482",
+          "role": "user",
+          "content": "确认提交",
+          "createdAt": "2026-09-12T18:24:08+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "1ce86b3f3dc746bb96886f3783548dce",
+          "role": "assistant",
+          "content": "这张申请已模拟提交，本轮没有重复创建。\n\n### 模拟提交成功\n\n模拟单号：**DEMO-CL-20260912-4A393598D9A8**\n\n差旅日期：2026-10-18 至 2026-10-20\n\n已创建本地模拟单据，可在模拟系统中查看。",
+          "createdAt": "2026-09-12T18:24:18+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "SUBMITTED",
+        "canSubmit": false,
+        "draftId": "DEMO-DRAFT-2731743c7337e13b",
+        "revision": 3,
+        "fingerprint": "6c50308971b5439a4c7bc0494c710efa1865e49d76bf795a71afe69c2bc32de9",
+        "lastSubmission": {
+          "status": "SUCCEEDED",
+          "applicationId": "MOCK-APP-f8d10a73eac34533afbca90b28e79842",
+          "applicationNo": "DEMO-CL-20260912-4A393598D9A8",
+          "requestId": "DEMO-REQ-b0c02601b8f82838a9a8f0768cfa12feff46974d",
+          "message": "本地模拟系统已创建申请。"
+        },
+        "pending": []
+      },
+      "activeTurnId": null
+    },
+    "demo-live-application.json": {
+      "uuid": "MOCK-REQ-08ed9797bc224961abd12f0571a6bf97",
+      "code": "SUCCESS",
+      "message": {},
+      "data": {
+        "applicationId": "MOCK-APP-f8d10a73eac34533afbca90b28e79842",
+        "applicationNo": "DEMO-CL-20260912-4A393598D9A8",
+        "createdAt": "2026-09-12T18:23:34+08:00",
+        "demoOnly": true,
+        "request": {
+          "applicantId": "DEMO_EMP_001",
+          "departmentId": "DEMO_DEPT_001",
+          "dqydbg": null,
+          "payerCompanyId": "DEMO_COMPANY_001",
+          "remark": "深圳项目验收",
+          "trips": [
+            {
+              "cityFrom": "330100",
+              "cityTo": "DEMO_SHENZHEN",
+              "dateFrom": "2026-10-18",
+              "dateTo": "2026-10-18",
+              "tool": "飞机-经济舱"
+            },
+            {
+              "cityFrom": "DEMO_SHENZHEN",
+              "cityTo": "330100",
+              "dateFrom": "2026-10-20",
+              "dateTo": "2026-10-20",
+              "tool": "飞机-经济舱"
+            }
+          ]
+        }
+      }
+    },
+    "demo-live-receipt.json": {
+      "uuid": "MOCK-REQ-c3d290e4fd7a4d67b49a430c8a70f468",
+      "code": "SUCCESS",
+      "message": {},
+      "data": {
+        "clientRequestId": "DEMO-REQ-b0c02601b8f82838a9a8f0768cfa12feff46974d",
+        "createdAt": "2026-09-12T18:23:34+08:00",
+        "status": "SUCCEEDED",
+        "result": {
+          "code": "SUCCESS",
+          "data": {
+            "action": "AI_CREATE",
+            "applicationId": "MOCK-APP-f8d10a73eac34533afbca90b28e79842",
+            "applicationNo": "DEMO-CL-20260912-4A393598D9A8",
+            "clientRequestId": "DEMO-REQ-b0c02601b8f82838a9a8f0768cfa12feff46974d",
+            "createdAt": "2026-09-12T18:23:34+08:00",
+            "demoOnly": true
+          },
+          "message": {},
+          "uuid": {
+            "value": "MOCK-REQ-f9fa720350844efe824daa0b4e82245b"
+          }
+        }
+      }
+    },
+    "demo-failure-step1.json": {
+      "id": "f82477f8163f4766bbf3ecdbd024c237",
+      "title": "2026年10月22日从杭州东站去桐庐拜访客…",
+      "createdAt": "2026-09-12T18:25:32+08:00",
+      "updatedAt": "2026-09-12T18:26:00+08:00",
+      "messages": [
+        {
+          "id": "d303d9f151384263817b468509b8a9f5",
+          "role": "user",
+          "content": "2026年10月22日从杭州东站去桐庐拜访客户，当天返回杭州。往返高铁二等座，普通出差。",
+          "createdAt": "2026-09-12T18:25:47+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "dd31d9f3a53844b7b37f4a93d5b0f3ba",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：拜访客户\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 桐庐 | 2026-10-22 | 2026-10-22 | 火车-二等座 |\n| 2 | 桐庐 | 杭州 | 2026-10-22 | 2026-10-22 | 火车-二等座 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段出发地按上一段目的地补全为桐庐。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:26:00+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "READY_TO_CONFIRM",
+        "canSubmit": true,
+        "draftId": "DEMO-DRAFT-6ad841f860d51441",
+        "revision": 1,
+        "fingerprint": "ef15b7f0395cf2e5bbec86328bccbfebd3b713697412799c0deb86b7daff5eb2",
+        "lastSubmission": null,
+        "pending": []
+      },
+      "activeTurnId": null
+    },
+    "demo-failure-step2-failed.json": {
+      "id": "f82477f8163f4766bbf3ecdbd024c237",
+      "title": "2026年10月22日从杭州东站去桐庐拜访客…",
+      "createdAt": "2026-09-12T18:25:32+08:00",
+      "updatedAt": "2026-09-12T18:27:04+08:00",
+      "messages": [
+        {
+          "id": "d303d9f151384263817b468509b8a9f5",
+          "role": "user",
+          "content": "2026年10月22日从杭州东站去桐庐拜访客户，当天返回杭州。往返高铁二等座，普通出差。",
+          "createdAt": "2026-09-12T18:25:47+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "dd31d9f3a53844b7b37f4a93d5b0f3ba",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：拜访客户\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 桐庐 | 2026-10-22 | 2026-10-22 | 火车-二等座 |\n| 2 | 桐庐 | 杭州 | 2026-10-22 | 2026-10-22 | 火车-二等座 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段出发地按上一段目的地补全为桐庐。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:26:00+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "b299aae8e1354929b649a4aa0b7855a5",
+          "role": "user",
+          "content": "确认提交",
+          "createdAt": "2026-09-12T18:26:54+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "b036d8b3eb7f49d4a5f6350b54a2c654",
+          "role": "assistant",
+          "content": "### 模拟提交失败\n\n演示：差旅系统暂时不可用，请稍后重试。\n\n草稿与当前确认版本已保留；修复失败原因后可再次单独回复“确认提交”。",
+          "createdAt": "2026-09-12T18:27:04+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "READY_TO_CONFIRM",
+        "canSubmit": true,
+        "draftId": "DEMO-DRAFT-6ad841f860d51441",
+        "revision": 1,
+        "fingerprint": "ef15b7f0395cf2e5bbec86328bccbfebd3b713697412799c0deb86b7daff5eb2",
+        "lastSubmission": {
+          "status": "FAILED",
+          "applicationId": "",
+          "applicationNo": "",
+          "requestId": "DEMO-REQ-a49ec050139ab5bd0dddca9c4ed10e8faad058b1",
+          "message": "演示：差旅系统暂时不可用，请稍后重试。"
+        },
+        "pending": []
+      },
+      "activeTurnId": null
+    },
+    "demo-failure-receipt.json": {
+      "uuid": "MOCK-REQ-ea9248832b50441e970271453e5cfdd5",
+      "code": "SUCCESS",
+      "message": {},
+      "data": {
+        "clientRequestId": "DEMO-REQ-a49ec050139ab5bd0dddca9c4ed10e8faad058b1",
+        "createdAt": "2026-09-12T18:27:02+08:00",
+        "status": "FAILED",
+        "result": {
+          "code": "MOCK_SUBMIT_FAILED",
+          "data": {
+            "action": "AI_CREATE",
+            "clientRequestId": "DEMO-REQ-a49ec050139ab5bd0dddca9c4ed10e8faad058b1",
+            "demoOnly": true
+          },
+          "message": {
+            "text": "演示：差旅系统暂时不可用，请稍后重试。"
+          },
+          "uuid": {
+            "value": "MOCK-REQ-d6d00133807c40f4a0c08ef94be45ab8"
+          }
+        }
+      }
+    },
+    "demo-failure-step3-retry.json": {
+      "id": "f82477f8163f4766bbf3ecdbd024c237",
+      "title": "2026年10月22日从杭州东站去桐庐拜访客…",
+      "createdAt": "2026-09-12T18:25:32+08:00",
+      "updatedAt": "2026-09-12T18:28:34+08:00",
+      "messages": [
+        {
+          "id": "d303d9f151384263817b468509b8a9f5",
+          "role": "user",
+          "content": "2026年10月22日从杭州东站去桐庐拜访客户，当天返回杭州。往返高铁二等座，普通出差。",
+          "createdAt": "2026-09-12T18:25:47+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "dd31d9f3a53844b7b37f4a93d5b0f3ba",
+          "role": "assistant",
+          "content": "### 请核对差旅申请（Demo）\n\n申请人：演示员工\n部门：演示业务部\n付款公司：演示科技公司\n差旅类型：普通差旅\n事由：拜访客户\n\n| 段 | 出发城市 | 到达城市 | 出发日期 | 到达日期 | 交通工具 |\n|---|---|---|---|---|---|\n| 1 | 杭州 | 桐庐 | 2026-10-22 | 2026-10-22 | 火车-二等座 |\n| 2 | 桐庐 | 杭州 | 2026-10-22 | 2026-10-22 | 火车-二等座 |\n\n默认与映射说明：\n- 第1段未指定跨日到达，按国内演示默认同日到达；请核对。\n- 第2段出发地按上一段目的地补全为桐庐。\n- 第2段未指定跨日到达，按国内演示默认同日到达；请核对。\n\n确认无误后，请单独回复 **确认提交**。需要修改时直接说明具体内容。\n当前已完成草稿检查，确认后将调用本地模拟系统创建申请并返回实际模拟回执。",
+          "createdAt": "2026-09-12T18:26:00+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "b299aae8e1354929b649a4aa0b7855a5",
+          "role": "user",
+          "content": "确认提交",
+          "createdAt": "2026-09-12T18:26:54+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "b036d8b3eb7f49d4a5f6350b54a2c654",
+          "role": "assistant",
+          "content": "### 模拟提交失败\n\n演示：差旅系统暂时不可用，请稍后重试。\n\n草稿与当前确认版本已保留；修复失败原因后可再次单独回复“确认提交”。",
+          "createdAt": "2026-09-12T18:27:04+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "50c389ecc9754316a581a13a9f9ae49a",
+          "role": "user",
+          "content": "确认提交",
+          "createdAt": "2026-09-12T18:28:22+08:00",
+          "status": "succeeded"
+        },
+        {
+          "id": "76f47212e8e349c8a5bd29ea488d0719",
+          "role": "assistant",
+          "content": "### 模拟提交成功\n\n模拟单号：**DEMO-CL-20260912-112469530D48**\n\n差旅日期：2026-10-22 至 2026-10-22\n\n已创建本地模拟单据，可在模拟系统中查看。",
+          "createdAt": "2026-09-12T18:28:34+08:00",
+          "status": "succeeded"
+        }
+      ],
+      "state": {
+        "phase": "SUBMITTED",
+        "canSubmit": false,
+        "draftId": "DEMO-DRAFT-6ad841f860d51441",
+        "revision": 1,
+        "fingerprint": "ef15b7f0395cf2e5bbec86328bccbfebd3b713697412799c0deb86b7daff5eb2",
+        "lastSubmission": {
+          "status": "SUCCEEDED",
+          "applicationId": "MOCK-APP-f64affdd066f44a7b98fc21054168b6d",
+          "applicationNo": "DEMO-CL-20260912-112469530D48",
+          "requestId": "DEMO-REQ-6792e6bda681574b0d6e03493c0e60d1912408d4",
+          "message": "本地模拟系统已创建申请。"
+        },
+        "pending": []
+      },
+      "activeTurnId": null
+    },
+    "demo-retry-receipt.json": {
+      "uuid": "MOCK-REQ-5e177033cba64a58a45a2c0431ff90af",
+      "code": "SUCCESS",
+      "message": {},
+      "data": {
+        "clientRequestId": "DEMO-REQ-6792e6bda681574b0d6e03493c0e60d1912408d4",
+        "createdAt": "2026-09-12T18:28:32+08:00",
+        "status": "SUCCEEDED",
+        "result": {
+          "code": "SUCCESS",
+          "data": {
+            "action": "AI_CREATE",
+            "applicationId": "MOCK-APP-f64affdd066f44a7b98fc21054168b6d",
+            "applicationNo": "DEMO-CL-20260912-112469530D48",
+            "clientRequestId": "DEMO-REQ-6792e6bda681574b0d6e03493c0e60d1912408d4",
+            "createdAt": "2026-09-12T18:28:32+08:00",
+            "demoOnly": true
+          },
+          "message": {},
+          "uuid": {
+            "value": "MOCK-REQ-7656f4e10f09472cb39dcdb07bdc8205"
+          }
+        }
+      }
+    }
+  },
+  "integrationEvents": [
+    {
+      "id": "6bdf7abffd0c4030820b859253213ebb",
+      "createdAt": "2026-09-12T18:29:59+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 10,
+      "requestId": ""
+    },
+    {
+      "id": "37d6a20fba254ddb860c146373963cf2",
+      "createdAt": "2026-09-12T18:29:59+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 6,
+      "requestId": ""
+    },
+    {
+      "id": "b0bf5fe5059a4fca9515d8bb68fed85d",
+      "createdAt": "2026-09-12T18:29:59+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": ""
+    },
+    {
+      "id": "26e48f3e59664cfaa4dad99c63de026f",
+      "createdAt": "2026-09-12T18:28:32+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/mock/v1/travel/applications",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "67b2a1b136944ffe9d5aac5188431f52",
+      "createdAt": "2026-09-12T18:28:31+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/submissions/DEMO-REQ-6792e6bda681574b0d6e03493c0e60d1912408d4",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 9,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "e8cf8b5a8c02419ca58947fe0851be09",
+      "createdAt": "2026-09-12T18:28:31+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/submissions/DEMO-REQ-6792e6bda681574b0d6e03493c0e60d1912408d4",
+      "httpStatus": 404,
+      "code": "SUBMISSION_NOT_FOUND",
+      "durationMs": 3,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "775b946e8d664402b4b6e07aa31b806c",
+      "createdAt": "2026-09-12T18:28:29+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 15,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "70f0f3eceaa34af28033a4d06341af2b",
+      "createdAt": "2026-09-12T18:28:29+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "f4ad62199cc540358b8ba3764e828ee7",
+      "createdAt": "2026-09-12T18:28:29+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "49c1514263ba49ba9f366e08566f0197",
+      "createdAt": "2026-09-12T18:28:24+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 13,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "1c2beeb0a8b0453b81830b2aff55ba34",
+      "createdAt": "2026-09-12T18:28:24+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 7,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "3920626395dc4284bb928f7e9e332d58",
+      "createdAt": "2026-09-12T18:28:24+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "aee689d6-e2ec-4dd2-8a4c-d38201b2ade1"
+    },
+    {
+      "id": "79c414795b534125a8fc8315fcaa17ab",
+      "createdAt": "2026-09-12T18:27:02+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/mock/v1/travel/applications",
+      "httpStatus": 200,
+      "code": "MOCK_SUBMIT_FAILED",
+      "durationMs": 6,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "cff3d5878b28436eb4af4fcc20d3c2cb",
+      "createdAt": "2026-09-12T18:27:01+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/submissions/DEMO-REQ-a49ec050139ab5bd0dddca9c4ed10e8faad058b1",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "db1df7d035d54cc298c523ffbdc4f89c",
+      "createdAt": "2026-09-12T18:27:01+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/submissions/DEMO-REQ-a49ec050139ab5bd0dddca9c4ed10e8faad058b1",
+      "httpStatus": 404,
+      "code": "SUBMISSION_NOT_FOUND",
+      "durationMs": 3,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "574eb2a9dfa44274911f7b1d853e3e9a",
+      "createdAt": "2026-09-12T18:26:59+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 11,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "8bc8bfcda8f5405a9e1c2fc9ae5a4b48",
+      "createdAt": "2026-09-12T18:26:59+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "83997afb49fc4004a5bd2abddb68046a",
+      "createdAt": "2026-09-12T18:26:59+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "da31abf3d88e4c68ae991b9f488de43a",
+      "createdAt": "2026-09-12T18:26:56+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 18,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "2c41402df0014f4888978bc62af69874",
+      "createdAt": "2026-09-12T18:26:56+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 5,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "d2fe26278a4d4631a572e40702d992a7",
+      "createdAt": "2026-09-12T18:26:56+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 9,
+      "requestId": "2bdad72c-eacc-4849-be9f-77ac53736dc9"
+    },
+    {
+      "id": "5068e280c05d461bb2b3a60dcdf146eb",
+      "createdAt": "2026-09-12T18:25:58+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 9,
+      "requestId": "d1a3cba8-b0fa-4cd1-a907-5a32379a9e9f"
+    },
+    {
+      "id": "3c60bf9fbb104c88a90cfc4db10c64ae",
+      "createdAt": "2026-09-12T18:25:58+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "d1a3cba8-b0fa-4cd1-a907-5a32379a9e9f"
+    },
+    {
+      "id": "e1471ea41aae4ebf90b510738f2e2268",
+      "createdAt": "2026-09-12T18:25:58+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 0,
+      "requestId": "d1a3cba8-b0fa-4cd1-a907-5a32379a9e9f"
+    },
+    {
+      "id": "f3a22179a2ec48dcbcb87f3d36e1432c",
+      "createdAt": "2026-09-12T18:25:49+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 15,
+      "requestId": "d1a3cba8-b0fa-4cd1-a907-5a32379a9e9f"
+    },
+    {
+      "id": "814699796ecb42298d14bd58b73de98d",
+      "createdAt": "2026-09-12T18:25:49+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 7,
+      "requestId": "d1a3cba8-b0fa-4cd1-a907-5a32379a9e9f"
+    },
+    {
+      "id": "48a298680ae24a82b668164fda01d278",
+      "createdAt": "2026-09-12T18:25:49+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "d1a3cba8-b0fa-4cd1-a907-5a32379a9e9f"
+    },
+    {
+      "id": "e99f41c4e04b44e89b6c07a77d47eb5a",
+      "createdAt": "2026-09-12T18:24:14+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 15,
+      "requestId": "c12a3d17-5e46-4828-849d-42f8224a0516"
+    },
+    {
+      "id": "bcae0d1a14ea42d889842aad50a09613",
+      "createdAt": "2026-09-12T18:24:14+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "c12a3d17-5e46-4828-849d-42f8224a0516"
+    },
+    {
+      "id": "46dc507228594daca144f2c0855be237",
+      "createdAt": "2026-09-12T18:24:14+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "c12a3d17-5e46-4828-849d-42f8224a0516"
+    },
+    {
+      "id": "da6a2f22b77b4f44904d943a6de6e39d",
+      "createdAt": "2026-09-12T18:24:10+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 11,
+      "requestId": "c12a3d17-5e46-4828-849d-42f8224a0516"
+    },
+    {
+      "id": "bcae0b2b654045ae866d2e8fc2a911e1",
+      "createdAt": "2026-09-12T18:24:10+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 7,
+      "requestId": "c12a3d17-5e46-4828-849d-42f8224a0516"
+    },
+    {
+      "id": "9af551d874544d12af5173c8b2b8a0c1",
+      "createdAt": "2026-09-12T18:24:10+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "c12a3d17-5e46-4828-849d-42f8224a0516"
+    },
+    {
+      "id": "049a243bd6d144a18706ff4f218e1784",
+      "createdAt": "2026-09-12T18:23:34+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/mock/v1/travel/applications",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "8ea187b3675e428dbdebd1ec21c08f7d",
+      "createdAt": "2026-09-12T18:23:33+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/submissions/DEMO-REQ-b0c02601b8f82838a9a8f0768cfa12feff46974d",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 9,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "3a6a902acd394c77acd60868d128392b",
+      "createdAt": "2026-09-12T18:23:33+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/submissions/DEMO-REQ-b0c02601b8f82838a9a8f0768cfa12feff46974d",
+      "httpStatus": 404,
+      "code": "SUBMISSION_NOT_FOUND",
+      "durationMs": 3,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "6bd42b9f89a041fca8c7e1d0d0f2c157",
+      "createdAt": "2026-09-12T18:23:30+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 14,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "ad85762cc91e41cb9536387ad4c1343d",
+      "createdAt": "2026-09-12T18:23:30+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "c61edff76f91438591c8737975621243",
+      "createdAt": "2026-09-12T18:23:30+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "71e0587fc89b4b8da51e5852524be485",
+      "createdAt": "2026-09-12T18:23:24+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 12,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "68b7681fc06543be9f4ea1587679ae51",
+      "createdAt": "2026-09-12T18:23:24+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 6,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "cc08878cc73e42678a7f7e288f6cc245",
+      "createdAt": "2026-09-12T18:23:24+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 2,
+      "requestId": "3647b9ab-4325-4c4c-a538-6c938ae556a4"
+    },
+    {
+      "id": "ee84cc2a6f114d2e986740acf3790479",
+      "createdAt": "2026-09-12T18:22:16+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 12,
+      "requestId": "4d6be355-84e5-4304-9b8e-0e2130a098e6"
+    },
+    {
+      "id": "44bc91ab7c0444c38ddcd61880c9dda8",
+      "createdAt": "2026-09-12T18:22:16+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "4d6be355-84e5-4304-9b8e-0e2130a098e6"
+    },
+    {
+      "id": "7cbbc3b606964b07853a130d2cd34991",
+      "createdAt": "2026-09-12T18:22:16+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "4d6be355-84e5-4304-9b8e-0e2130a098e6"
+    },
+    {
+      "id": "780464a3a8c34f2a8494ff07fd87de12",
+      "createdAt": "2026-09-12T18:22:13+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 14,
+      "requestId": "4d6be355-84e5-4304-9b8e-0e2130a098e6"
+    },
+    {
+      "id": "59eff66b5e0046a9a1941ca7ec0078ce",
+      "createdAt": "2026-09-12T18:22:13+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": "4d6be355-84e5-4304-9b8e-0e2130a098e6"
+    },
+    {
+      "id": "2e90828b11734548a6248840c63907ba",
+      "createdAt": "2026-09-12T18:22:13+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 3,
+      "requestId": "4d6be355-84e5-4304-9b8e-0e2130a098e6"
+    },
+    {
+      "id": "42e597e832bd4e358556a5899057b063",
+      "createdAt": "2026-09-12T18:20:37+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 14,
+      "requestId": "92f5b6e3-7a2c-44f7-a54f-c75e24fe507c"
+    },
+    {
+      "id": "327193016d5c481e89483bc4cf67cb29",
+      "createdAt": "2026-09-12T18:20:37+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "92f5b6e3-7a2c-44f7-a54f-c75e24fe507c"
+    },
+    {
+      "id": "9351f30797bc4eda8ac6dcaa94dc00bf",
+      "createdAt": "2026-09-12T18:20:37+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "92f5b6e3-7a2c-44f7-a54f-c75e24fe507c"
+    },
+    {
+      "id": "58d904e477294fbeadb75be173cdfa78",
+      "createdAt": "2026-09-12T18:20:29+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 15,
+      "requestId": "92f5b6e3-7a2c-44f7-a54f-c75e24fe507c"
+    },
+    {
+      "id": "25902d33057e421396d1d9acc972d916",
+      "createdAt": "2026-09-12T18:20:29+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": "92f5b6e3-7a2c-44f7-a54f-c75e24fe507c"
+    },
+    {
+      "id": "6a77b6150a5e4379bc99bf3d7ee68371",
+      "createdAt": "2026-09-12T18:20:29+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "92f5b6e3-7a2c-44f7-a54f-c75e24fe507c"
+    },
+    {
+      "id": "654a36d2f67c48c588222906392c887b",
+      "createdAt": "2026-09-12T18:19:54+08:00",
+      "source": "DIFY",
+      "method": "POST",
+      "path": "/workflow/v1/cities/resolve",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 16,
+      "requestId": "bb45dd8b-b765-483e-b766-c5f9d5ce862a"
+    },
+    {
+      "id": "6f3dee698d9948ad936e1a0fe50588b6",
+      "createdAt": "2026-09-12T18:19:54+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": "bb45dd8b-b765-483e-b766-c5f9d5ce862a"
+    },
+    {
+      "id": "c5724644ef34445f82e95f6dfe211222",
+      "createdAt": "2026-09-12T18:19:54+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "POST",
+      "path": "/mock/v1/cities/query",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 2,
+      "requestId": "bb45dd8b-b765-483e-b766-c5f9d5ce862a"
+    },
+    {
+      "id": "066668ee3ecf43c185876c7dd4da4581",
+      "createdAt": "2026-09-12T18:19:47+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 14,
+      "requestId": "bb45dd8b-b765-483e-b766-c5f9d5ce862a"
+    },
+    {
+      "id": "a2922a53f9fc4b4c9cead94c45202584",
+      "createdAt": "2026-09-12T18:19:47+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 6,
+      "requestId": "bb45dd8b-b765-483e-b766-c5f9d5ce862a"
+    },
+    {
+      "id": "567e5c3743064f59b4af2ec4fb559ae2",
+      "createdAt": "2026-09-12T18:19:47+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 2,
+      "requestId": "bb45dd8b-b765-483e-b766-c5f9d5ce862a"
+    },
+    {
+      "id": "a3828f6c013f4f819b4967dc0b7f3714",
+      "createdAt": "2026-09-12T18:14:39+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/submissions/check-no-such-request",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": ""
+    },
+    {
+      "id": "b8942725e72d432dbf903167341e45f0",
+      "createdAt": "2026-09-12T18:14:39+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/submissions/check-no-such-request",
+      "httpStatus": 404,
+      "code": "SUBMISSION_NOT_FOUND",
+      "durationMs": 3,
+      "requestId": ""
+    },
+    {
+      "id": "849043ef4b67499ab998b51372ae594d",
+      "createdAt": "2026-09-12T18:14:37+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 14,
+      "requestId": ""
+    },
+    {
+      "id": "17bb6ef3ee444cc2b9078215abf15dae",
+      "createdAt": "2026-09-12T18:14:37+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": ""
+    },
+    {
+      "id": "4d170e70d255489285e042479518a757",
+      "createdAt": "2026-09-12T18:14:37+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": ""
+    },
+    {
+      "id": "d3189cb43db9494e83185bf11d1832a7",
+      "createdAt": "2026-09-12T18:14:05+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 12,
+      "requestId": ""
+    },
+    {
+      "id": "41745bbe9e0043ec800f52b6df4ccb38",
+      "createdAt": "2026-09-12T18:14:05+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 8,
+      "requestId": ""
+    },
+    {
+      "id": "8c74f5cecae94d6383ee78c66251df5a",
+      "createdAt": "2026-09-12T18:14:05+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": ""
+    },
+    {
+      "id": "f7b18dfb26fe477ca9e4fc34f0c010d3",
+      "createdAt": "2026-09-12T18:12:28+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 12,
+      "requestId": ""
+    },
+    {
+      "id": "91c3defc772f4e9ca3e6eafeca8485f8",
+      "createdAt": "2026-09-12T18:12:28+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 7,
+      "requestId": ""
+    },
+    {
+      "id": "2ea1f72d2ef2470ba876ba87e31941a9",
+      "createdAt": "2026-09-12T18:12:28+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": ""
+    },
+    {
+      "id": "2d4e687f205a403fbebc78099fa5a5ba",
+      "createdAt": "2026-09-12T18:08:50+08:00",
+      "source": "DIFY",
+      "method": "GET",
+      "path": "/workflow/v1/context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 9,
+      "requestId": ""
+    },
+    {
+      "id": "651ee225daa14f74833973d24e382b93",
+      "createdAt": "2026-09-12T18:08:50+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/transport-options",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 5,
+      "requestId": ""
+    },
+    {
+      "id": "93038ccc25d44510bada45b6e45df232",
+      "createdAt": "2026-09-12T18:08:50+08:00",
+      "source": "DIFY:ADAPTER",
+      "method": "GET",
+      "path": "/mock/v1/employee-context",
+      "httpStatus": 200,
+      "code": "SUCCESS",
+      "durationMs": 1,
+      "requestId": ""
+    }
+  ],
+  "finalApplicationTotal": 4,
+  "finalScenario": {
+    "failureMessage": "演示：差旅系统暂时不可用，请稍后重试。",
+    "submissionResult": "SUCCESS"
+  },
+  "retryApplication": {
+    "uuid": "MOCK-REQ-62e06c11d15d4935ac225ac21dfd6fa5",
+    "code": "SUCCESS",
+    "message": {},
+    "data": {
+      "applicationId": "MOCK-APP-f64affdd066f44a7b98fc21054168b6d",
+      "applicationNo": "DEMO-CL-20260912-112469530D48",
+      "createdAt": "2026-09-12T18:28:32+08:00",
+      "demoOnly": true,
+      "request": {
+        "applicantId": "DEMO_EMP_001",
+        "departmentId": "DEMO_DEPT_001",
+        "dqydbg": null,
+        "payerCompanyId": "DEMO_COMPANY_001",
+        "remark": "拜访客户",
+        "trips": [
+          {
+            "cityFrom": "330100",
+            "cityTo": "330122",
+            "dateFrom": "2026-10-22",
+            "dateTo": "2026-10-22",
+            "tool": "火车-二等座"
+          },
+          {
+            "cityFrom": "330122",
+            "cityTo": "330100",
+            "dateFrom": "2026-10-22",
+            "dateTo": "2026-10-22",
+            "tool": "火车-二等座"
+          }
+        ]
+      }
+    }
+  }
+}
