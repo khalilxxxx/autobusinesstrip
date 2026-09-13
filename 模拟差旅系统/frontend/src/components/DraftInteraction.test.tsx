@@ -194,7 +194,9 @@ describe('差旅草稿卡片', () => {
 });
 
 describe('草稿编辑抽屉', () => {
-  it('查询单据不会关闭创建草稿或覆盖未保存输入', async () => {
+  it('语义查询结果到达时不会关闭创建草稿或覆盖未保存输入', async () => {
+    let resolveQuery!: (value: unknown) => void;
+    api.lifecycle.mockImplementationOnce(() => new Promise((resolve) => { resolveQuery = resolve; }));
     const view = render(<AssistantPage />);
     const card = await view.findByLabelText('差旅申请草稿（当前版本）');
     fireEvent.click(within(card).getByRole('button', { name: '编辑申请' }));
@@ -202,10 +204,9 @@ describe('草稿编辑抽屉', () => {
     const reason = within(drawer).getByLabelText('出差事由') as HTMLTextAreaElement;
     fireEvent.change(reason, { target: { value: '未保存的创建草稿输入' } });
 
-    fireEvent.click(view.getByRole('button', { name: '查询单据' }));
-    fireEvent.click(await view.findByRole('button', { name: '开始查询' }));
-
-    await waitFor(() => expect(api.lifecycleQuery).toHaveBeenCalled());
+    resolveQuery({ documents: [], selectedDocument: null, draft: null, lastReceipt: null,
+      querySummary: { filters: { dateBasis: 'trip' }, total: 0, limit: 20, offset: 0 } });
+    await view.findByText(/没有找到相关单据/);
     expect(view.getByRole('dialog', { name: '编辑差旅申请' })).not.toBeNull();
     expect((within(drawer).getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('未保存的创建草稿输入');
   });

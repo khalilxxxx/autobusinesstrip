@@ -82,6 +82,7 @@ export interface ConversationSummary {
 
 export interface ChatMessage {
   id: string;
+  turnId?: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
@@ -180,6 +181,8 @@ export interface LifecycleDocument extends TravelApplication {
   history: LifecycleHistoryItem[];
   actions: Record<'withdraw' | 'void' | 'change' | 'resubmit', LifecycleActionEligibility>;
   stay?: { date: string; cityId?: string; cityName?: string; description?: string } | null;
+  locations?: { kind: string; cityIds: string[]; dateFrom: string; dateTo: string; explanation: string }[];
+  resolvedFrom?: string;
 }
 
 export interface LifecycleDifference {
@@ -235,6 +238,17 @@ export interface LifecycleState {
   draft: LifecycleDraft | null;
   lastReceipt: LifecycleReceipt | null;
   querySummary: { filters: LifecycleQueryFilters; total: number; limit: number; offset: number } | null;
+  cardGroups?: { id: string; turnId: string | null; title: string; documents: LifecycleDocument[]; total: number | null }[];
+  pendingAction?: LifecyclePendingAction | null;
+}
+
+export interface LifecyclePendingAction {
+  id: string;
+  reference: string;
+  action: 'withdraw' | 'void';
+  targetVersion: number;
+  targetDocument: LifecycleDocument;
+  reason: string | null;
 }
 
 export interface LifecycleOptions {

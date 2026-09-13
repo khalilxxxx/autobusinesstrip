@@ -97,6 +97,39 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .message-row.user .avatar { color: white; background: #8070df; border-color: #8070df; }
 .message-content { max-width: min(74%, 720px); min-width: 0; }
 .message-content.has-draft { width: min(86%, 760px); max-width: min(86%, 760px); }
+.message-content:has(.travel-document-group) { width: min(86%, 760px); max-width: min(86%, 760px); }
+.travel-document-group { margin: 15px 0 6px; width: 100%; }
+.travel-document-group-heading { display: flex; align-items: center; gap: 8px; margin: 0 0 9px; color: #83768f; font-size: 11px; }
+.travel-document-group-heading span { padding: 2px 7px; border-radius: 20px; background: #eee8f8; color: #7560a5; }
+.travel-document-card { overflow: hidden; margin-bottom: 12px; border: 1px solid #e4ddec; border-radius: 14px; background: white; box-shadow: 0 5px 16px rgba(65, 45, 95, .04); }
+.travel-document-card > header { display: flex; gap: 10px; align-items: center; padding: 15px 16px; border-bottom: 1px solid #f0ebf5; background: #fcfaff; }
+.travel-document-icon { flex: 0 0 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: #8164c3; background: #f0eafa; }
+.travel-document-card header > div { min-width: 0; flex: 1; }
+.travel-document-card header small { display: block; color: #9685a9; font-size: 10px; }
+.travel-document-card header strong { display: block; margin-top: 3px; color: #514360; font-size: 12px; overflow-wrap: anywhere; }
+.travel-document-status { flex-shrink: 0; padding: 5px 8px; border-radius: 6px; color: #79609b; background: #eee7f6; font-size: 10px; }
+.travel-document-status.status-S004 { color: #287b5a; background: #e8f6ee; }
+.travel-document-status.status-S100 { color: #927e89; background: #f2ebee; }
+.travel-document-body { padding: 13px 16px; }
+.travel-document-date { display: flex; gap: 6px; align-items: center; color: #8b7e9b; font-size: 11px; }
+.travel-document-reason { margin: 10px 0 8px; color: #534661; font-size: 13px; font-weight: 600; }
+.travel-document-route { display: flex; flex-wrap: wrap; gap: 6px 14px; color: #776387; font-size: 11px; }
+.travel-document-route > span { display: inline-flex; align-items: center; gap: 5px; }
+.travel-document-card summary { cursor: pointer; color: #8b789c; font-size: 11px; }
+.travel-document-card footer { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 15px; border-top: 1px solid #f0ebf5; }
+.travel-document-card footer button, .lifecycle-controls > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 10px; min-height: 32px; border: 1px solid #e1d7ee; border-radius: 8px; color: #7c62a6; background: #fcfaff; font-size: 11px; cursor: pointer; }
+.travel-document-card footer .system-document-button { margin-right: auto; color: #7e728e; background: white; }
+.travel-document-card footer button.danger { color: #ae596b; border-color: #eed2da; background: #fff8fa; }
+.travel-document-card footer button:disabled { opacity: .45; cursor: not-allowed; }
+.lifecycle-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 8px; }
+.lifecycle-controls:empty { display: none; }
+.lifecycle-controls .document-error, .lifecycle-controls .document-notice { flex-basis: 100%; margin: 0; }
+.document-action-dialog { max-height: calc(100dvh - 40px); overflow-y: auto; }
+.document-action-dialog h2 { margin-top: 0; }
+.document-action-dialog .delete-dialog-actions { flex-wrap: wrap; }
+.void-reason-field { display: block; margin-top: 16px; color: #746180; font-size: 12px; }
+.void-reason-field textarea { display: block; width: 100%; resize: vertical; margin-top: 7px; padding: 10px; border: 1px solid #dfd5e8; border-radius: 9px; color: #594662; font: inherit; line-height: 1.6; }
+.void-reason-field textarea:focus { outline: 2px solid #d3c0ec; outline-offset: 1px; }
 .message-bubble { padding: 14px 17px; border-radius: 5px 17px 17px 17px; color: #393646; background: white; border: 1px solid #eeeaf4; box-shadow: 0 8px 26px rgba(50, 42, 83, .045); font-size: 14px; line-height: 1.72; }
 .message-row.user .message-bubble { color: white; border: 0; border-radius: 17px 5px 17px 17px; background: linear-gradient(145deg, #8776e7, #6e5bd8); box-shadow: 0 9px 22px rgba(92, 70, 207, .18); }
 .message-content time { display: block; margin-top: 6px; color: #aaa5b3; font-size: 10px; }

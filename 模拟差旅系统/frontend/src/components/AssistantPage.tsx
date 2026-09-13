@@ -13,12 +13,12 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { DraftCard } from './DraftCard';
 import { DraftDrawer } from './DraftDrawer';
 import { DeleteConversationDialog } from './DeleteConversationDialog';
-import { DocumentPanel } from './DocumentPanel';
+import { DocumentPanel, LifecycleCards, LifecycleControls } from './DocumentPanel';
 
 const examples = [
   '我下周一从杭州去桐庐拜访客户，当天高铁往返。',
   '10 月 18 日从上海虹桥到广州出差，20 日返回，坐飞机经济舱。',
-  '我想申请下周去昆山出差，还缺哪些信息？',
+  '查一下我接下来有哪些差旅单据。',
 ];
 
 const draftReplyGuidance = '你可以直接回复补充或修改信息，也可以点击“编辑申请”填写表单。';
@@ -483,6 +483,8 @@ export function AssistantPage() {
       </aside>
 
       <main className="assistant-main">
+        <DocumentPanel conversationId={conversation?.id || null} refreshToken={`${conversation?.updatedAt || ''}:${conversation?.messages.length || 0}`}
+          busy={pageLocked} onSemantic={(text) => { setInput(text); window.setTimeout(() => composerRef.current?.focus(), 0); }}>
         <header className="chat-header">
           <div>
             <h1>{conversation?.title || '新的差旅申请'}</h1>
@@ -491,8 +493,6 @@ export function AssistantPage() {
           <div className={`service-pill ${status?.ready ? 'ready' : 'offline'}`}>
             <span />{status?.ready ? '服务已就绪' : '服务未就绪'}
           </div>
-          <DocumentPanel conversationId={conversation?.id || null}
-            refreshToken={`${conversation?.updatedAt || ''}:${conversation?.messages.length || 0}`} />
         </header>
 
         <section className="chat-stage" aria-live="polite">
@@ -502,7 +502,7 @@ export function AssistantPage() {
             <div className="welcome-state">
               <div className="welcome-icon"><Bot size={29} /></div>
               <h2>你好，我是小智</h2>
-              <p>告诉我出发地、目的地、日期、交通方式和出差事由，我会逐项核对后生成申请。</p>
+              <p>告诉我出差安排，我来协助申请；也可以直接问我历史、当前或未来的差旅单据。</p>
               <div className="example-grid">
                 {examples.map((example) => <button key={example} onClick={() => void send(example)} disabled={busy}>{example}<ArrowRight size={16} /></button>)}
               </div>
@@ -525,6 +525,7 @@ export function AssistantPage() {
                       editDisabled={Boolean(currentDraftSubmission())}
                       submitLabel={currentDraftSubmission() || unknownConfirmation?.conversationId === conversation.id || (conversation.state.lastSubmission?.status || '').toUpperCase() === 'UNKNOWN' ? '查询提交结果' : '提交单据'}
                     />}
+                    {message.role === 'assistant' && message.turnId && <LifecycleCards turnId={message.turnId} />}
                     <time>{formatDateTime(message.createdAt)}</time>
                     {message.status === 'uncertain' && <div className="message-status-note uncertain"><AlertCircle size={14} />本轮结果尚未确认，请核对会话与模拟单据后继续。</div>}
                     {message.status === 'failed' && <div className="message-status-note failed"><AlertCircle size={14} />本轮处理失败，已有内容仍保留。</div>}
@@ -557,12 +558,14 @@ export function AssistantPage() {
                   </div>{activeTurn.status !== 'running' && <div className={`message-status-note ${activeTurn.status}`}><AlertCircle size={14} />本轮结果已收到，但会话尚未同步，请点击“重新连接”重试。</div>}</div>
                 </article>
               )}
+              <LifecycleCards />
               <div ref={messagesEndRef} />
             </div>
           )}
         </section>
 
         <div className="chat-actions">
+          <LifecycleControls />
           {error && <div className="notice error-notice"><AlertCircle size={18} /><span>{error}</span><button onClick={() => void initialise()}><RefreshCw size={15} />重新连接</button></div>}
           {submission && (
             <div className={`submission-card ${submission.status.toLowerCase()}`}>
@@ -585,7 +588,7 @@ export function AssistantPage() {
                   void send(input);
                 }
               }}
-              placeholder={editingDraft ? '请先完成或关闭差旅申请编辑…' : busy ? '请稍候，小智正在处理本轮消息…' : '输入差旅行程或修改要求…'}
+              placeholder={editingDraft ? '请先完成或关闭差旅申请编辑…' : busy ? '请稍候，小智正在处理本轮消息…' : '描述行程、查询单据，或说明要办理的操作…'}
               disabled={pageLocked}
               rows={1}
               aria-label="发送给小智的消息"
@@ -596,6 +599,7 @@ export function AssistantPage() {
           </div>
           <p className="composer-hint"><Clock3 size={13} /> Enter 发送，Shift + Enter 换行 · 所有单据均为本地模拟数据</p>
         </div>
+        </DocumentPanel>
       </main>
 
       {deleteTarget && <DeleteConversationDialog conversation={deleteTarget} deleting={Boolean(deletingId)} error={deleteError}

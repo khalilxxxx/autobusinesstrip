@@ -54,6 +54,12 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const assistantApi = {
+  lifecycleProposeAction: (id: string, body: { reference: string; action: 'withdraw' | 'void'; reason?: string }) => requestJson<LifecycleState>(
+    `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/propose-action`, { method: 'POST', body: JSON.stringify(body) },
+  ),
+  lifecycleCancelAction: (id: string) => requestJson<LifecycleState>(
+    `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/propose-action`, { method: 'DELETE' },
+  ),
   status: () => requestJson<AssistantStatus>('/assistant/api/status'),
   conversations: () => requestJson<{ items: ConversationSummary[] }>('/assistant/api/conversations'),
   createConversation: () => requestJson<ConversationDetail>('/assistant/api/conversations', {

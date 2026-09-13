@@ -121,7 +121,7 @@ class AssistantStore(Store):
             messages = conn.execute("SELECT * FROM assistant_messages WHERE conversation_id=? ORDER BY sequence", (cid,)).fetchall()
             active = conn.execute("SELECT id FROM assistant_turns WHERE conversation_id=? AND status='running'", (cid,)).fetchone()
         return {"id": cid, "title": row["title"], "createdAt": row["created_at"], "updatedAt": row["updated_at"],
-                "messages": [{"id": item["id"], "role": item["role"],
+                "messages": [{"id": item["id"], "turnId": item["turn_id"], "role": item["role"],
                               "content": clean_answer(item["content"]) if item["role"] == "assistant" else item["content"],
                               "createdAt": item["created_at"], "status": item["status"],
                               "draftState": json.loads(item["draft_state_json"]) if item["draft_state_json"] else None} for item in messages],

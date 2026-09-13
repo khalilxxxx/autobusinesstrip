@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({
   lifecycle: vi.fn(), lifecycleQuery: vi.fn(), lifecycleDetail: vi.fn(), lifecycleOptions: vi.fn(),
   lifecyclePrepare: vi.fn(), lifecycleSave: vi.fn(), lifecycleSubmit: vi.fn(),
-  lifecycleAction: vi.fn(), lifecycleRecover: vi.fn(), lifecycleReceipt: vi.fn(), lifecycleCancelDraft: vi.fn(),
+  lifecycleProposeAction: vi.fn(), lifecycleCancelAction: vi.fn(), lifecycleAction: vi.fn(), lifecycleRecover: vi.fn(), lifecycleReceipt: vi.fn(), lifecycleCancelDraft: vi.fn(),
 }));
 
 vi.mock('../api', () => ({
@@ -20,7 +20,7 @@ vi.mock('../api', () => ({
 
 import type { LifecycleDocument, LifecycleDraft, LifecycleState } from '../types';
 import { ApiError } from '../api';
-import { DocumentPanel } from './DocumentPanel';
+import { DocumentPanel, LifecycleCards } from './DocumentPanel';
 
 const options = {
   departments: [{ id: 'D1', name: '业务部' }, { id: 'D2', name: '研发部' }],
@@ -75,34 +75,98 @@ beforeEach(() => {
   api.lifecycle.mockResolvedValue(state());
   api.lifecycleOptions.mockResolvedValue({ uuid: 'O', code: 'SUCCESS', message: {}, data: options });
   api.lifecycleDetail.mockImplementation(async (_cid: string, reference: string) => ({ ...state(), selectedDocument: document({ applicationId: reference }) }));
+  api.lifecycleProposeAction.mockImplementation(async (_cid, body) => {
+    const current = await api.lifecycle.mock.results[api.lifecycle.mock.results.length - 1].value;
+    const doc = current.documents.find((d: LifecycleDocument) => d.applicationId === body.reference) || current.selectedDocument;
+    return { ...current, pendingAction: { id: 'proposal', reference: body.reference, action: body.action, targetVersion: doc.version, targetDocument: doc, reason: body.reason || null } };
+  });
+  api.lifecycleCancelAction.mockResolvedValue(state());
   api.lifecycleRecover.mockResolvedValue(state());
   api.lifecycleCancelDraft.mockResolvedValue(state());
 });
 
 afterEach(cleanup);
 
-describe('员工单据办理面板', () => {
-  it('从查询列表打开详情并按后端资格撤回到 S005，员工侧没有审批按钮', async () => {
+describe('语义单据卡片', () => {
+  it('连续两轮查询的卡片各自展示在对应回复位置', async () => {
+    const first = document(); const second = document({ applicationId: 'APP-2', applicationNo: 'DEMO-CL-002', request: { ...first.request, remark: '项目驻场' } });
+    api.lifecycle.mockResolvedValue({ ...state([second]), cardGroups: [
+      { id: 'g1', turnId: 't1', title: '相关差旅单据', documents: [first], total: 1 },
+      { id: 'g2', turnId: 't2', title: '相关差旅单据', documents: [second], total: 1 },
+    ] });
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0}>
+      <div data-testid="first-reply"><LifecycleCards turnId="t1" /></div>
+      <div data-testid="second-reply"><LifecycleCards turnId="t2" /></div>
+    </DocumentPanel>);
+    await within(view.getByTestId('first-reply')).findByRole('article', { name: '差旅单据 DEMO-CL-001' });
+    expect(within(view.getByTestId('first-reply')).queryByText('项目驻场')).toBeNull();
+    expect(within(view.getByTestId('second-reply')).getByRole('article', { name: '差旅单据 DEMO-CL-002' })).not.toBeNull();
+  });
+
+  it('查询结果直接显示卡片且系统按钮不发起业务写入', async () => {
+    api.lifecycle.mockResolvedValue(state([document()]));
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    const card = await view.findByRole('article', { name: '差旅单据 DEMO-CL-001' });
+    expect(card.textContent).toContain('客户拜访');
+    expect(view.queryByLabelText('历史当前未来')).toBeNull();
+    fireEvent.click(view.getByRole('button', { name: '查看系统单据' }));
+    expect(api.lifecycleAction).not.toHaveBeenCalled();
+  });
+
+  it('撤回先核对目标，取消不写入，第二次确认才办理', async () => {
+    const doc = document({ status: 'S002', actions: { ...document().actions, withdraw: { allowed: true, reason: null } } });
+    api.lifecycle.mockResolvedValue(state([doc]));
+    api.lifecycleProposeAction.mockResolvedValue({ ...state([doc]), pendingAction: {
+      id: 'confirm-1', reference: doc.applicationId, action: 'withdraw', targetVersion: doc.version, targetDocument: doc, reason: null,
+    } });
+    api.lifecycleCancelAction.mockResolvedValue(state([doc]));
+    api.lifecycleAction.mockImplementation(async (_cid, body) => ({ ...state([doc]), lastReceipt: {
+      clientRequestId: body.clientRequestId, status: 'SUCCEEDED', result: { document: { ...doc, status: 'S005' } },
+    } }));
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '撤回本次提交' }));
+    expect((await view.findByRole('alertdialog', { name: '确认撤回' })).textContent).toContain('DEMO-CL-001');
+    expect(api.lifecycleAction).not.toHaveBeenCalled();
+    fireEvent.click(view.getByRole('button', { name: '取消' }));
+    await waitFor(() => expect(view.queryByRole('alertdialog')).toBeNull());
+    expect(api.lifecycleAction).not.toHaveBeenCalled();
+    fireEvent.click(view.getByRole('button', { name: '撤回本次提交' }));
+    fireEvent.click(await view.findByRole('button', { name: '确认撤回' }));
+    await waitFor(() => expect(api.lifecycleAction).toHaveBeenCalledWith('CID', expect.objectContaining({ action: 'withdraw', expectedVersion: 3 })));
+  });
+
+  it('作废弹窗说明影响并将填写的原因传入办理记录', async () => {
+    const doc = document();
+    api.lifecycle.mockResolvedValue(state([doc]));
+    api.lifecycleProposeAction.mockResolvedValue({ ...state([doc]), pendingAction: {
+      id: 'confirm-void', reference: doc.applicationId, action: 'void', targetVersion: doc.version, targetDocument: doc, reason: null,
+    } });
+    api.lifecycleAction.mockResolvedValue(state());
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '作废当前有效单据' }));
+    expect((await view.findByRole('alertdialog', { name: '作废差旅单据' })).textContent).toContain('不恢复旧版本');
+    fireEvent.change(view.getByLabelText('作废原因（选填）'), { target: { value: '客户取消会议' } });
+    fireEvent.click(view.getByRole('button', { name: '确认作废' }));
+    await waitFor(() => expect(api.lifecycleAction).toHaveBeenCalledWith('CID', expect.objectContaining({ action: 'void', reason: '客户取消会议' })));
+  });
+});
+
+describe('员工单据卡片办理', () => {
+  it('从查询卡片按后端资格确认撤回到 S005，员工侧没有审批按钮', async () => {
     const pending = document({ status: 'S002', version: 1, isEffective: false, currentEffectiveId: null,
       actions: { withdraw: { allowed: true, reason: null }, void: { allowed: false, reason: '当前不可作废。' },
         change: { allowed: false, reason: '当前不可变更。' }, resubmit: { allowed: false, reason: '当前不可重提。' } } });
     const withdrawn = document({ ...pending, status: 'S005', version: 2,
       history: [...pending.history, { action: 'withdraw', at: '2026-09-13T10:00:00+08:00', fromStatus: 'S002', toStatus: 'S005', role: 'EMPLOYEE', submissionRound: 1 }],
       actions: { ...pending.actions, withdraw: { allowed: false, reason: '仅 S002 可撤回。' }, resubmit: { allowed: true, reason: null } } });
-    api.lifecycleQuery.mockResolvedValue(state([pending]));
+    api.lifecycle.mockResolvedValue(state([pending]));
     api.lifecycleDetail.mockResolvedValue({ ...state([pending]), selectedDocument: pending });
     api.lifecycleAction.mockResolvedValue({ ...state([withdrawn]), selectedDocument: withdrawn });
 
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    const queryButton = await view.findByRole('button', { name: '查询单据' });
-    expect(queryButton.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(queryButton);
-    expect((await view.findByLabelText('单据查询与办理')).parentElement).toBe(globalThis.document.body);
-    fireEvent.click(await view.findByRole('button', { name: '开始查询' }));
-    fireEvent.click(await view.findByRole('button', { name: /DEMO-CL-001/ }));
-    await waitFor(() => expect(api.lifecycleDetail).toHaveBeenCalled());
     await waitFor(() => expect(view.getByRole('button', { name: '撤回本次提交' }).hasAttribute('disabled')).toBe(false));
     fireEvent.click(view.getByRole('button', { name: '撤回本次提交' }));
+    fireEvent.click(await view.findByRole('button', { name: '确认撤回' }));
 
     await waitFor(() => expect(api.lifecycleAction).toHaveBeenCalledWith('CID', expect.objectContaining({
       reference: 'APP-1', action: 'withdraw', expectedVersion: 1,
@@ -129,9 +193,6 @@ describe('员工单据办理面板', () => {
     api.lifecycleSubmit.mockResolvedValue({ ...state([document({ status: 'S002', isEffective: false })]), draft: null });
 
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '查询单据' }));
-    fireEvent.click(await view.findByRole('button', { name: /DEMO-CL-001/ }));
-    await waitFor(() => expect(api.lifecycleDetail).toHaveBeenCalled());
     await waitFor(() => expect(view.getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(false));
     fireEvent.click(view.getByRole('button', { name: '发起行程变更' }));
     expect((await view.findByRole('dialog', { name: '编辑行程变更' })).parentElement?.parentElement).toBe(globalThis.document.body);
@@ -185,9 +246,10 @@ describe('员工单据办理面板', () => {
     api.lifecycleReceipt.mockRejectedValue(new ApiError('未找到', 404, 'RECEIPT_NOT_FOUND'));
 
     const first = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await first.findByRole('button', { name: '查询单据' }));
     fireEvent.click(await first.findByRole('button', { name: '撤回本次提交' }));
+    fireEvent.click(await first.findByRole('button', { name: '确认撤回' }));
     expect(await first.findByText(/结果待核对/)).not.toBeNull();
+    expect(first.queryByRole('alertdialog')).toBeNull();
     const originalId = JSON.parse(localStorage.getItem('travelLifecyclePendingOperation') || '{}').CID.body.clientRequestId;
     first.unmount();
 
@@ -219,7 +281,6 @@ describe('员工单据办理面板', () => {
     api.lifecycle.mockImplementation((_id: string) => _id === 'A' ? Promise.resolve(state([old])) : next.promise);
 
     const view = render(<DocumentPanel conversationId="A" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '查询单据' }));
     expect(await view.findByText('会话-A-单据')).not.toBeNull();
 
     view.rerender(<DocumentPanel conversationId="B" refreshToken={0} />);
@@ -251,14 +312,15 @@ describe('员工单据办理面板', () => {
     api.lifecycleAction.mockRejectedValue(new ApiError('断网', 0, 'NETWORK_ERROR'));
 
     const first = render(<DocumentPanel conversationId="A" refreshToken={0} />);
-    fireEvent.click(await first.findByRole('button', { name: '查询单据' }));
     fireEvent.click(await first.findByRole('button', { name: '撤回本次提交' }));
+    fireEvent.click(await first.findByRole('button', { name: '确认撤回' }));
     expect(await first.findByText(/结果待核对/)).not.toBeNull();
+    expect(first.queryByRole('alertdialog')).toBeNull();
     first.unmount();
 
     const second = render(<DocumentPanel conversationId="B" refreshToken={0} />);
-    fireEvent.click(await second.findByRole('button', { name: '查询单据' }));
     fireEvent.click(await second.findByRole('button', { name: '撤回本次提交' }));
+    fireEvent.click(await second.findByRole('button', { name: '确认撤回' }));
     expect(await second.findByText(/结果待核对/)).not.toBeNull();
     second.unmount();
 
@@ -276,9 +338,8 @@ describe('员工单据办理面板', () => {
     fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '收起后仍需保留' } });
     fireEvent.click(view.getByRole('button', { name: '关闭生命周期编辑' }));
-    fireEvent.click(view.getByRole('button', { name: '查询单据' }));
-    fireEvent.click(await view.findByRole('button', { name: '开始查询' }));
-    await waitFor(() => expect(api.lifecycleQuery).toHaveBeenCalled());
+    view.rerender(<DocumentPanel conversationId="CID" refreshToken={1} />);
+    await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
     fireEvent.click(view.getByRole('button', { name: '继续编辑变更' }));
 
     expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('收起后仍需保留');

@@ -156,15 +156,16 @@ def test_unknown_submission_preserves_request_and_recovers_real_receipt(env,monk
 
 def test_unknown_withdraw_after_commit_replays_exact_original_operation(env,monkeypatch):
     app,c,cid,url=env; service=app.state.lifecycle;a=create(service);real=service.receipt
+    turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']))
     def unavailable(rid,*args,**kwargs):
         result=real(rid,*args,**kwargs)
         raise OSError('response lost')
     monkeypatch.setattr(service,'receipt',unavailable)
     command=dict(intent='WITHDRAW',reference=a['applicationId'])
-    first=turn(env,'撤回这张',command,'unknown-withdraw')
+    first=turn(env,'确认撤回',command,'unknown-withdraw')
     assert '尚未确认' in first['reply']
     monkeypatch.setattr(service,'receipt',real)
-    second=turn(env,'撤回这张',command,'unknown-withdraw')
+    second=turn(env,'确认撤回',command,'unknown-withdraw')
     assert '真实业务回执' in second['reply']
     assert service.document(a['applicationId'])['status']=='S005'
 
@@ -185,11 +186,12 @@ def test_gateway_exposes_only_lifecycle_context_and_turn(env):
 
 def test_unknown_action_recovers_original_id_on_new_dify_run(env,monkeypatch):
     app,c,cid,url=env; service=app.state.lifecycle;a=create(service);real=service.receipt
+    turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']))
     def unavailable(rid,*args,**kwargs):
         real(rid,*args,**kwargs)
         raise OSError('response lost')
     monkeypatch.setattr(service,'receipt',unavailable)
-    turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']),'lost-original')
+    turn(env,'确认撤回',dict(intent='WITHDRAW',reference=a['applicationId']),'lost-original')
     monkeypatch.setattr(service,'receipt',real)
     reply=turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']),'new-dify-run')['reply']
     assert 'lost-original' in reply and '真实业务回执' in reply
@@ -213,11 +215,12 @@ def test_preparing_s003_explains_normal_approval_return(env):
 
 def test_replayed_success_projects_current_visible_document(env):
     app,c,cid,url=env;service=app.state.lifecycle;a=create(service)
+    turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']))
     command=dict(intent='WITHDRAW',reference=a['applicationId'])
-    turn(env,'撤回这张',command,'withdraw-replay')
+    turn(env,'确认撤回',command,'withdraw-replay')
     a=service.document(a['applicationId']); a=complete(service,operation(service,a,'resubmit',payload()))
     newer=complete(service,operation(service,a,'change',payload('DEMO_BEIJING')))
-    reply=turn(env,'撤回这张',command,'withdraw-replay')['reply']
+    reply=turn(env,'确认撤回',command,'withdraw-replay')['reply']
     assert '以下为当前单据' in reply and newer['applicationNo'] in reply
     assert a['applicationNo'] not in reply
 
@@ -265,17 +268,21 @@ def test_inquiry_conditional_and_quoted_action_never_write(env,query):
 def test_direct_action_accepts_common_document_label_before_number(env,label):
     app,c,cid,url=env; a=complete(app.state.lifecycle,create(app.state.lifecycle))
     result=turn(env,'请作废'+label+' '+a['applicationNo'],dict(intent='VOID',reference=a['applicationNo']))
+    assert '确认作废' in result['reply']
+    assert app.state.lifecycle.document(a['applicationId'])['status']=='S004'
+    result=turn(env,'确认作废',dict(intent='CONFIRM'))
     assert '真实业务回执' in result['reply']
     assert app.state.lifecycle.document(a['applicationId'])['status']=='S100'
 
 
 def test_recovery_turn_replay_projects_original_receipt_current_document(env,monkeypatch):
     app,c,cid,url=env;service=app.state.lifecycle;a=create(service);real=service.receipt
+    turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']))
     def unavailable(rid,*args,**kwargs):
         real(rid,*args,**kwargs);raise OSError('lost')
     monkeypatch.setattr(service,'receipt',unavailable)
     command=dict(intent='WITHDRAW',reference=a['applicationId'])
-    turn(env,'撤回这张',command,'business-original')
+    turn(env,'确认撤回',command,'business-original')
     monkeypatch.setattr(service,'receipt',real)
     turn(env,'撤回这张',command,'recovery-run')
     a=complete(service,operation(service,service.document(a['applicationId']),'resubmit',payload()))
@@ -322,7 +329,8 @@ def test_change_receipt_explains_predecessor_remains_effective(env):
 
 def test_ordinary_withdraw_and_resubmit_explain_no_approved_arrangement(env):
     app,c,cid,url=env; a=create(app.state.lifecycle)
-    withdrawn=turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']),'ordinary-withdraw')
+    turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']))
+    withdrawn=turn(env,'确认撤回',dict(intent='WITHDRAW',reference=a['applicationId']),'ordinary-withdraw')
     assert 'S005' in withdrawn['reply'] and '尚未形成已批准的有效安排' in withdrawn['reply']
     turn(env,'沿原号重提这张',dict(intent='RESUBMIT',reference=a['applicationId']))
     resubmitted=turn(env,'确认提交原号重提',{'intent':'CONFIRM'},'ordinary-resubmit')
@@ -330,6 +338,7 @@ def test_ordinary_withdraw_and_resubmit_explain_no_approved_arrangement(env):
 
 
 @pytest.mark.parametrize('query',["他说'撤销刚才的修改'",'撤销刚才的修改要收费','撤销刚才的修改之前先备份'])
+
 def test_local_cancel_requires_direct_instruction(env,query):
     app,c,cid,url=env;a,d=prepared(env)
     turn(env,query,{'intent':'CANCEL'})

@@ -195,6 +195,27 @@ class LifecycleWorkflow:
         reply=lambda text:dict(handled=True,reply=text)
         fallthrough=dict(handled=False,reply='')
         state=self.assistant._read(cid); draft=state['draft']
+        # 操作原因是数据，不能将原因中的“不需要出差”误判为取消办理。
+        reason=None
+        reason_match=re.search(r'[，,；;]\s*(?:原因(?:是|为)?\s*[:：]?|因为)\s*(.+)$',query)
+        if reason_match and re.search(r'撤回|作废',query[:reason_match.start()]):
+            reason=reason_match.group(1).strip(); query=query[:reason_match.start()].strip()
+        action_confirmation=re.fullmatch(r'(?:请)?确认(撤回|作废)(?:\s+([^，,；;。!！]+))?[。!！\s]*',query)
+        if action_confirmation:
+            pending=state.get('pendingAction'); action='withdraw' if action_confirmation[1]=='撤回' else 'void'
+            if state['lastReceipt'] and state['lastReceipt']['status']=='UNKNOWN':
+                self._link_receipt(cid,body.clientRequestId,state['lastReceipt']['clientRequestId'])
+                return reply('先核对上次未确认办理，未执行新的操作。\n'+receipt_text(self.assistant.recover(cid)))
+            if not pending or pending['action']!=action:
+                return reply('当前没有对应的待确认操作，请先明确单据并核对卡片。')
+            doc=self.assistant.service.document(pending['reference'])
+            if action_confirmation[2] and action_confirmation[2].strip() not in {pending['reference'],doc['applicationId'],doc['applicationNo']}:
+                return reply('确认的单据与待办理卡片不一致，未执行操作。请重新核对目标单号。')
+            return reply(receipt_text(self.assistant.action(cid,dict(reference=pending['reference'],action=action,
+                expectedVersion=pending['targetVersion'],clientRequestId=body.clientRequestId,reason=reason if reason is not None else pending.get('reason')))))
+        if re.fullmatch(r'(?:取消|放弃)(?:本次)?(?:撤回|作废)[。!！\s]*',query):
+            self.assistant.cancel_action(cid)
+            return reply('已取消本次操作确认，单据状态未改变。')
         # 语言守卫不信任模型将咨询/否定误判成写入授权。
         local_cancel=bool(re.search(r'(撤销|取消|放弃).{0,8}(修改|编辑|草稿|变更草稿)',query))
         non_authorizing=bool(re.search(r'不要|不想|别|暂不|先不|不能|不需要|勿|能否|能.*吗|可以.*[吗么]|是否|怎么|如何|为何|为什么|多久|多长|什么|怎样|怎么样|影响|流程|了解|如果|假如|假设|要是|倘若|等到|之后再|[？?“”\"「」]',query))
@@ -283,9 +304,14 @@ class LifecycleWorkflow:
             if doc['status']=='S003': return reply('这张单据正在审批中（S003），员工不能撤回或代替审批；请在模拟控制台正常退回后再继续。')
             if intent=='VOID' and doc['documentType']=='CHANGE' and doc['status']=='S002':
                 return reply('这张变更仍在待审批（S002），需要先明确撤回，取得撤回回执后再单独作废，当前尚未作废。')
-            # 原始引用传给业务服务，禁止读取重定向带来静默操作新单。
-            body_action=dict(reference=reference,action=intent.lower(),clientRequestId=body.clientRequestId,expectedVersion=doc['version'])
-            return reply(receipt_text(self.assistant.action(cid,body_action)))
+            # 首次表达只准备待确认卡片，UI 弹窗或语义再次确认后才真正办理。
+            view=self.assistant.propose_action(cid,dict(reference=reference,action=intent.lower(),reason=reason))
+            effect=('撤回后进入 S005，可沿原单号编辑重提。' if intent=='WITHDRAW' else
+                '仅作废本次未生效变更，前序批准安排仍有效，可重新发起变更。' if doc['documentType']=='CHANGE' and doc['status']=='S005' else
+                '作废后这份差旅安排失效，不恢复旧版本。')
+            return reply(f"请核对单据 {doc['applicationNo']}。{effect}\n"
+                         +f"点击卡片上的{expected_word}按钮，或回复“确认{expected_word}”。"
+                         +(('\n已记录作废原因：'+reason) if reason else ('\n作废原因可选填，也可以用对话补充。' if intent=='VOID' else '')))
         return reply('请明确需要办理的单据与操作。')
 
     def patch(self,cid,patch):

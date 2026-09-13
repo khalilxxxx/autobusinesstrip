@@ -39,6 +39,11 @@ class Detail(StrictModel):
     reference: Identifier
 
 
+class ProposeAction(Detail):
+    action: Literal['withdraw','void']
+    reason: Optional[str] = Field(default=None,max_length=4000)
+
+
 class Save(StrictModel):
     draftId: Identifier
     revision: int = Field(ge=1)
@@ -111,7 +116,49 @@ class LifecycleAssistant:
             draft['targetDocument']=self.service.document(draft['targetId'])
         receipt=state['lastReceipt']
         if receipt and receipt['status']!='UNKNOWN': receipt=self.service.receipt(receipt['clientRequestId'])
-        return dict(documents=documents,selectedDocument=selected,draft=draft,lastReceipt=receipt,querySummary=state['querySummary'])
+        groups=[]
+        for group in state.get('cardGroups',[]):
+            visible=[]
+            for reference in group['references']:
+                doc=self.service.document(reference)
+                filters=group.get('filters',{})
+                if filters.get('dateFrom') and filters.get('dateFrom')==filters.get('dateTo'):
+                    match=self.service.list_documents(dict(keyword=doc['applicationId'],dateFrom=filters['dateFrom'],dateTo=filters['dateTo']))
+                    if match['items']: doc=match['items'][0]
+                if doc['applicationId'] not in {d['applicationId'] for d in visible}: visible.append(doc)
+            groups.append({k:v for k,v in group.items() if k!='references'} | dict(documents=visible))
+        pending=deepcopy(state.get('pendingAction'))
+        if pending: pending['targetDocument']=self.service.document(pending['reference'])
+        return dict(documents=documents,selectedDocument=selected,draft=draft,lastReceipt=receipt,querySummary=state['querySummary'],
+                    cardGroups=groups,pendingAction=pending)
+
+    def _present(self,cid,state,references,title,filters=None,total=None):
+        # 仅保存引用，读卡片时重新解析当前可见版本，不能通过旧回复泄露旧版内容。
+        with self.store.connection() as conn:
+            turn=conn.execute("SELECT id FROM assistant_turns WHERE conversation_id=? AND status='running'",(cid,)).fetchone()
+        turn_id=turn['id'] if turn else None
+        groups=state.setdefault('cardGroups',[])
+        groups[:]=[g for g in groups if g['turnId']!=turn_id]
+        groups.append(dict(id=uuid4().hex,turnId=turn_id,title=title,references=references,filters=filters or {},total=total))
+
+    def propose_action(self,cid,body):
+        body=ProposeAction.model_validate(body).model_dump()
+        with self.lock:
+            state=self._read(cid)
+            if state['lastReceipt'] and state['lastReceipt']['status']=='UNKNOWN':
+                raise ServiceError('RESULT_UNKNOWN','请先查询上次办理结果，再确认新的操作。',409)
+            doc=self.service.document(body['reference']); eligibility=doc['actions'][body['action']]
+            if not eligibility['allowed']: raise ServiceError('ACTION_NOT_ALLOWED',eligibility['reason'],409)
+            state['pendingAction']=dict(id=uuid4().hex,reference=body['reference'],action=body['action'],
+                                        targetVersion=doc['version'],reason=body['reason'])
+            state['selectedReference']=body['reference']
+            self._present(cid,state,[body['reference']],'请核对待办理单据')
+            self._write(cid,state); return self.view(cid)
+
+    def cancel_action(self,cid):
+        with self.lock:
+            state=self._read(cid); state['pendingAction']=None
+            self._write(cid,state); return self.view(cid)
 
     def query(self,cid,filters):
         with self.lock:
@@ -120,6 +167,7 @@ class LifecycleAssistant:
             # 新结果集不继承上一次单据指代；编辑草稿仍独立保留。
             state['selectedReference']=None
             state['querySummary']=dict(filters=filters,total=result['total'],limit=result['limit'],offset=result['offset'])
+            self._present(cid,state,state['resultIds'],'相关差旅单据',filters,result['total'])
             self._write(cid,state)
             return self.view(cid)
 
@@ -137,7 +185,9 @@ class LifecycleAssistant:
     def detail(self,cid,reference):
         with self.lock:
             state=self._read(cid); self.service.document(reference)
-            state['selectedReference']=reference; self._write(cid,state)
+            state['selectedReference']=reference
+            self._present(cid,state,[reference],'差旅单据')
+            self._write(cid,state)
             return self.view(cid)
 
     def prepare(self,cid,reference,mode):
@@ -153,7 +203,9 @@ class LifecycleAssistant:
             draft=dict(id=uuid4().hex,revision=1,mode=mode,targetId=doc['applicationId'],targetVersion=doc['version'],
                        payload=deepcopy(doc['request']),original=deepcopy(doc['request']),differences=[])
             draft['fingerprint']=fingerprint(draft)
-            state['draft']=draft; state['selectedReference']=doc['applicationId']; self._write(cid,state)
+            state['draft']=draft; state['selectedReference']=doc['applicationId']
+            self._present(cid,state,[doc['applicationId']],'正在编辑的单据')
+            self._write(cid,state)
             return self.view(cid)
 
     def save(self,cid,body):
@@ -236,7 +288,12 @@ class LifecycleAssistant:
         if state['draft'] and op.get('draftId')==state['draft']['id']:
             if receipt['status']=='SUCCEEDED': state['draft']=None
             else: state['draft'].pop('requestId',None)
-        if receipt['status']=='SUCCEEDED': state['selectedReference']=receipt['result']['document']['applicationId']
+        if receipt['status']=='SUCCEEDED':
+            state['selectedReference']=receipt['result']['document']['applicationId']
+            self._present(cid,state,[state['selectedReference']],'办理结果')
+        pending=state.get('pendingAction')
+        if pending and pending['reference']==op['reference'] and pending['action']==op['action']:
+            state['pendingAction']=None
         self._write(cid,state)
         if receipt['status']=='FAILED': raise self.service._restore_error(receipt['result'])
         return self.view(cid)
@@ -275,6 +332,10 @@ def register_assistant_lifecycle(app,router,db_path):
     def submit(cid:str,body:Submit): return assistant.submit(cid,body.model_dump())
     @router.post(prefix+'/action')
     def action(cid:str,body:Action): return assistant.action(cid,body.model_dump())
+    @router.post(prefix+'/propose-action')
+    def propose(cid:str,body:ProposeAction): return assistant.propose_action(cid,body.model_dump())
+    @router.delete(prefix+'/propose-action')
+    def cancel_action(cid:str): return assistant.cancel_action(cid)
     @router.post(prefix+'/recover')
     def recover(cid:str): return assistant.recover(cid)
     @router.delete(prefix+'/draft')
