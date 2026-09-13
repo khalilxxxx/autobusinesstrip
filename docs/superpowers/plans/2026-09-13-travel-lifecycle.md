@@ -55,7 +55,7 @@
 - 查询 filters：`keyword,city,dateFrom,dateTo,temporal("past"|"current"|"future"),dateBasis("trip"|"submitted"),status,effectiveOnly,limit,offset`；全为可选，默认 trip、可见单据、20/0。
 - options 提供 departments、payerCompanies、travelTypes、transports、cities；新增 DEMO_DEPT_002 演示研发部、DEMO_COMPANY_002 演示服务公司，保留原默认项。
 
-- [ ] 先写并运行事务业务失败测试，覆盖以下完整路径：
+- [x] 先写并运行事务业务失败测试，覆盖以下完整路径：
 ```python
 a = create_valid_application(store)  # 原 create 成功进入 S002/D，非 S004
 a = approve_to_complete(service, a)
@@ -67,12 +67,12 @@ assert a1["status"] == "S005"
 service.operate(a1["applicationId"], "void", "void-change-1", a1["version"])
 assert service.document(a["applicationId"])["tflag"] == "D"
 ```
-- [ ] 使用 SQLite BEGIN IMMEDIATE 将资格重验、写入状态、直接前序 tflag、有效指针和回执放在一次事务中；增加在途唯一约束。原 store.create 成功同事务初始化 S002/D，不把既有无状态老数据批量视作 S004（迁移按待核对/未生效处理，新 DB 样例明确状态）。
-- [ ] 写操作禁止操作已替代/他人/过期版本。重复 change、void 与 resubmit 竞态只有一个成功；失败回执可查询；回执重放前仍核对请求身份与内容。S002 重提轮次归零审批事实，但不清历史。
-- [ ] 复用城市和交通主数据并进行真实日期、闭环、衔接、日期顺序、字段完整性、部门公司范围校验；允许历史日期，不增加行程冲突政策。继承动作由上层准备完整 payload，业务层仍拒绝漏字段/未知值。返回字段级问题。
-- [ ] 查询按可见版本筛选，再做日期/城市交集；某日返回 `locations`（移动区间/停留区间及说明）；无时间移动日保留起止城市。S100 不用于 effectiveOnly 行程结果，S004 不能作为时间分类。旧单号即使关键词明确也不泄露旧 request 或历史提交快照。
-- [ ] seed 可重复且不删除用户数据，生成历史、当前停留、未来、S002、S003、S005 普通/变更、YBX 样例；所有是 DEMO_EMP_001。模拟审批与业务端点分开。
-- [ ] 测试包括 A→A1→A2、S005 普通作废拒绝、S005 变更取消后另建、作废有效 A2 不恢复、当前轮撤回、双线程并发变更/重提与作废、幂等冲突、重启回执、旧号重定向与隐藏、先选择版本再过滤、跨年交集、停留日和移动日。运行新测试以及原后端 tests，提交。
+- [x] 使用 SQLite BEGIN IMMEDIATE 将资格重验、写入状态、直接前序 tflag、有效指针和回执放在一次事务中；增加在途唯一约束。原 store.create 成功同事务初始化 S002/D，不把既有无状态老数据批量视作 S004（迁移按待核对/未生效处理，新 DB 样例明确状态）。
+- [x] 写操作禁止操作已替代/他人/过期版本。重复 change、void 与 resubmit 竞态只有一个成功；失败回执可查询；回执重放前仍核对请求身份与内容。S002 重提轮次归零审批事实，但不清历史。
+- [x] 复用城市和交通主数据并进行真实日期、闭环、衔接、日期顺序、字段完整性、部门公司范围校验；允许历史日期，不增加行程冲突政策。继承动作由上层准备完整 payload，业务层仍拒绝漏字段/未知值。返回字段级问题。
+- [x] 查询按可见版本筛选，再做日期/城市交集；某日返回 `locations`（移动区间/停留区间及说明）；无时间移动日保留起止城市。S100 不用于 effectiveOnly 行程结果，S004 不能作为时间分类。旧单号即使关键词明确也不泄露旧 request 或历史提交快照。
+- [x] seed 可重复且不删除用户数据，生成历史、当前停留、未来、S002、S003、S005 普通/变更、YBX 样例；所有是 DEMO_EMP_001。模拟审批与业务端点分开。
+- [x] 测试包括 A→A1→A2、S005 普通作废拒绝、S005 变更取消后另建、作废有效 A2 不恢复、当前轮撤回、双线程并发变更/重提与作废、幂等冲突、重启回执、旧号重定向与隐藏、先选择版本再过滤、跨年交集、停留日和移动日。运行新测试以及原后端 tests，提交。
 ```bash
 /Users/khalil/Documents/智能提单项目/模拟差旅系统/.venv/bin/python -m pytest tests/test_lifecycle.py tests/test_lifecycle_query.py tests/test_lifecycle_api.py -q
 /Users/khalil/Documents/智能提单项目/模拟差旅系统/.venv/bin/python -m pytest tests -q
@@ -94,18 +94,18 @@ assert service.document(a["applicationId"])["tflag"] == "D"
 - 自然语言编辑 patch 支持 remark/dqydbg/departmentId/payerCompanyId，tripUpdates（一基 index + 变更字段）、addTrips、removeTripIndices；校验 index、字段类型和城市交通候选。没有改动字段沿用服务器原快照，不以默认员工数据覆盖。缺信息返回澄清且不丢草稿。
 - Dify `sys.user_id` 与本地会话 dify_user 对应；直接 Dify 预览也可有独立 demo 员工会话，但不能通过 command 冒用另一用户。
 
-- [ ] 编写失败测试：创建草稿在查询/详情/撤回后字节级保持；保存变更时继承未改公司部门；S005 原号重提；结果第二张定位、缺唯一对象提示；旧确认拒绝；同号重试回执；重启继续草稿；S003 助手不能审批/撤回。
+- [x] 编写失败测试：创建草稿在查询/详情/撤回后字节级保持；保存变更时继承未改公司部门；S005 原号重提；结果第二张定位、缺唯一对象提示；旧确认拒绝；同号重试回执；重启继续草稿；S003 助手不能审批/撤回。
 ```python
 before = assistant_store.private_conversation(cid)["state_json"]
 lifecycle.query(cid, {"temporal": "future"})
 assert assistant_store.private_conversation(cid)["state_json"] == before
 ```
-- [ ] 将明确对象的撤回/作废动作作为授权表达，执行前以服务当前版本和资格验证；多候选必须选择。变更先准备草稿展示差异，再根据该 revision/fingerprint 确认提交；查询插入不能让“确认提交”误交另一份草稿。
-- [ ] 对 S002 在途变更说明先撤回再作废，对 S003 明确需模拟控制台正常退回，不能自动代替审批；每步独立回执，不能把部分成功说成作废整趟。
-- [ ] 新 DSL 从原 `交付物/完整Demo_Dify接入/差旅申请助手-完整Demo-可导入.yml` 深拷贝，增加上下文 HTTP→LLM 路由→严格 JSON 打包→生命周期 HTTP→handled 分支；handled=false 连原 H01，handled=true 直接回复、不写 cv_session。全部错误有可恢复中文回复，Code 禁止联网。复用旧模型配置 deepseek-v4-flash、thinking=false，原 DSL 文件不写回。
-- [ ] 正确构造初次纯查询会话 cv_session 默认有效空状态，避免 variables() 因生命周期分支从未跑创建初始化而失败；已有 cv_session 保持。新应用独立 env、DSL 发布文件为空密钥，私密运行文件由 Task3 生成。
-- [ ] 网关 allowlist 只增 context/turn 必需路由，不暴露模拟审批、种子、所有会话或任意本地接口。记录请求但不记录凭证。
-- [ ] 运行后端新增测试与全套，DSL 图连线/变量选择器/路径互斥/不写旧版/空密钥/Code 纯函数测试，提交。输出接口契约 JSON 示例供 Task3 使用。
+- [x] 将明确对象的撤回/作废动作作为授权表达，执行前以服务当前版本和资格验证；多候选必须选择。变更先准备草稿展示差异，再根据该 revision/fingerprint 确认提交；查询插入不能让“确认提交”误交另一份草稿。
+- [x] 对 S002 在途变更说明先撤回再作废，对 S003 明确需模拟控制台正常退回，不能自动代替审批；每步独立回执，不能把部分成功说成作废整趟。
+- [x] 新 DSL 从原 `交付物/完整Demo_Dify接入/差旅申请助手-完整Demo-可导入.yml` 深拷贝，增加上下文 HTTP→LLM 路由→严格 JSON 打包→生命周期 HTTP→handled 分支；handled=false 连原 H01，handled=true 直接回复、不写 cv_session。全部错误有可恢复中文回复，Code 禁止联网。复用旧模型配置 deepseek-v4-flash、thinking=false，原 DSL 文件不写回。
+- [x] 正确构造初次纯查询会话 cv_session 默认有效空状态，避免 variables() 因生命周期分支从未跑创建初始化而失败；已有 cv_session 保持。新应用独立 env、DSL 发布文件为空密钥，私密运行文件由 Task3 生成。
+- [x] 网关 allowlist 只增 context/turn 必需路由，不暴露模拟审批、种子、所有会话或任意本地接口。记录请求但不记录凭证。
+- [x] 运行后端新增测试与全套，DSL 图连线/变量选择器/路径互斥/不写旧版/空密钥/Code 纯函数测试，提交。输出接口契约 JSON 示例供 Task3 使用。
 ```bash
 /Users/khalil/Documents/智能提单项目/模拟差旅系统/.venv/bin/python -m pytest tests -q
 /Users/khalil/Documents/智能提单项目/交付物/完整Demo_Dify接入/.venv/bin/python -m unittest discover -s 交付物/单据生命周期_Dify/tests -v
@@ -118,19 +118,19 @@ assert assistant_store.private_conversation(cid)["state_json"] == before
 **消费：** Task2 的 lifecycle API 与 draft/DTO；Task1 模拟审批和种子接口。延续创建 DraftCard/DraftDrawer 与会话删除体验。
 **产出：** 新 worktree 8876 助手和模拟控制台、8877 网关，独立 SQLite、Dify 配置、网关 token/隧道、构建 dist；原版 8766/8767 不受影响。
 
-- [ ] 编写失败交互测试：列表打开详情→撤回按钮→S005；变更编辑包含部门公司、增删段、改日期→差异→确认；过期状态刷新；旧版不可打开；查询不关闭创建草稿；模拟审批按钮仅出现在模拟控制台。
+- [x] 编写失败交互测试：列表打开详情→撤回按钮→S005；变更编辑包含部门公司、增删段、改日期→差异→确认；过期状态刷新；旧版不可打开；查询不关闭创建草稿；模拟审批按钮仅出现在模拟控制台。
 ```tsx
 expect(screen.getByRole('button', {name: '查询单据'})).toBeEnabled()
 expect(screen.queryByRole('button', {name: '审批通过'})).not.toBeInTheDocument()
 ```
-- [ ] 在助手添加“查询单据”入口和持久结果面板，支持行程/提交日期、城市、状态和历史当前未来，展示绝对日期、状态/版本效力、当前有效和在途变更。详情展示路线和办理历史，不展示后台提交快照或旧版入口。自然语言回复后自动刷新相应面板。
-- [ ] 详情的动作按后端 actions 显示/禁用并说明原因。撤回/作废在目标详情中可直接触发，不新增必填原因。作废要清晰区分“作废本次未生效变更”与“作废当前有效单据”；无旧版恢复入口。
-- [ ] LifecycleEditor 独立于创建抽屉；编辑基本信息、城市、交通与日期、增删行程段；保存后展示前后差异及完整新安排，提交用当前 revision/fingerprint。网络断开保留填写/原请求号，并先查回执；查询插入不丢正在编辑内容；旧 revision 不能提交。表单校验问题以中文定位字段。
-- [ ] 模拟控制台增加生命周期状态/有效标签、模拟开始审批/完成/退回按钮，按钮使用 expectedVersion；提供非破坏性“添加演示样例”。解释 S004 是审批完成、S005 保留连续流程。
-- [ ] 独立启动脚本管理 PID+identity，只操作 worktree 自身进程。默认 server 8876/gateway 8877，启动时校验文件路径/端口；构建只写本工作树 dist。使用新 `.local/lifecycle-dify.json`、`.local/lifecycle-bridge.json`、`.local/lifecycle-processes.json`、`data/lifecycle.sqlite3`；配置保存新 app_id 并拒绝等于旧 ID。
-- [ ] 新运行 DSL 生成到 `.local/差旅助手-单据生命周期-V2-本机运行.yml`，填新网关地址和独立 token，仅私密配置有 key。新网关用已有 cloudflared 官方二进制路径或同版拷贝，不重启原隧道。Dify UI 的新建/导入/发布由主代理在脚本就绪后操作。
-- [ ] 更新中文启动与验收说明：baseline hash/tag、worktree 分支、端口、seed、两种作废、串行变更、报销不在范围、临时隧道地址变化仅更新新 App。
-- [ ] 运行 frontend test/build 与后端全套，完成源码提交。不要把未执行线上测试写成通过。
+- [x] 在助手添加“查询单据”入口和持久结果面板，支持行程/提交日期、城市、状态和历史当前未来，展示绝对日期、状态/版本效力、当前有效和在途变更。详情展示路线和办理历史，不展示后台提交快照或旧版入口。自然语言回复后自动刷新相应面板。
+- [x] 详情的动作按后端 actions 显示/禁用并说明原因。撤回/作废在目标详情中可直接触发，不新增必填原因。作废要清晰区分“作废本次未生效变更”与“作废当前有效单据”；无旧版恢复入口。
+- [x] LifecycleEditor 独立于创建抽屉；编辑基本信息、城市、交通与日期、增删行程段；保存后展示前后差异及完整新安排，提交用当前 revision/fingerprint。网络断开保留填写/原请求号，并先查回执；查询插入不丢正在编辑内容；旧 revision 不能提交。表单校验问题以中文定位字段。
+- [x] 模拟控制台增加生命周期状态/有效标签、模拟开始审批/完成/退回按钮，按钮使用 expectedVersion；提供非破坏性“添加演示样例”。解释 S004 是审批完成、S005 保留连续流程。
+- [x] 独立启动脚本管理 PID+identity，只操作 worktree 自身进程。默认 server 8876/gateway 8877，启动时校验文件路径/端口；构建只写本工作树 dist。使用新 `.local/lifecycle-dify.json`、`.local/lifecycle-bridge.json`、`.local/lifecycle-processes.json`、`data/lifecycle.sqlite3`；配置保存新 app_id 并拒绝等于旧 ID。
+- [x] 新运行 DSL 生成到 `.local/差旅助手-单据生命周期-V2-本机运行.yml`，填新网关地址和独立 token，仅私密配置有 key。新网关用已有 cloudflared 官方二进制路径或同版拷贝，不重启原隧道。Dify UI 的新建/导入/发布由主代理在脚本就绪后操作。
+- [x] 更新中文启动与验收说明：baseline hash/tag、worktree 分支、端口、seed、两种作废、串行变更、报销不在范围、临时隧道地址变化仅更新新 App。
+- [x] 运行 frontend test/build 与后端全套，完成源码提交。不要把未执行线上测试写成通过。
 ```bash
 npm test
 npm run build
@@ -140,11 +140,11 @@ npm run build
 ## 主代理联调与交付
 
 - [x] 初始化旧版 Git、私密快照、基线 tag、新 worktree。
-- [ ] 基线后端/前端/DSL 回归，记录实际结果。
-- [ ] 每任务按 brief→实现→独立审查→必要修复审查执行；只有一个实现子代理同时写代码。主代理期间完成独立的 Dify UI 读取、旧版导出记录及运行准备。
-- [ ] 用新运行 DSL 在 Dify 新建应用，确认新 App ID 与旧 ID 不同，再发布和配置本地新 Key；不覆盖旧应用。
-- [ ] 新链路实际验证创建、查当前/未来/停留、撤回、S005 编辑重提、变更审批前后、S005 变更作废、串行第二代变更和最新作废不恢复。可通过 API 推进模拟审批，再在助手核对。
-- [ ] 核对旧源码基线哈希与旧配置哈希未变，旧本地服务健康、旧 Dify 工作流仍原节点与发布版本。
+- [x] 基线后端/前端/DSL 回归，记录实际结果。
+- [x] 每任务按 brief→实现→独立审查→必要修复审查执行；只有一个实现子代理同时写代码。主代理期间完成独立的 Dify UI 读取、旧版导出记录及运行准备。
+- [x] 用新运行 DSL 在 Dify 新建应用，确认新 App ID 与旧 ID 不同，再发布和配置本地新 Key；不覆盖旧应用。
+- [x] 新链路实际验证创建、查当前/未来/停留、撤回、S005 编辑重提、变更审批前后、S005 变更作废、串行第二代变更和最新作废不恢复。可通过 API 推进模拟审批，再在助手核对。
+- [x] 核对旧源码基线哈希与旧配置哈希未变，旧本地服务健康、旧 Dify 工作流仍原节点与发布版本。
 - [ ] 最终全分支审查，针对结论完成修复与限定范围复查。把 43 场景映射到实际自动测试/线上证据，记录未覆盖或环境限制。
 - [ ] 提交新分支成果，保留隔离 worktree 供用户运行；交付新旧入口、新 Dify URL、基线与新版 commit、验证证据文件。
 
