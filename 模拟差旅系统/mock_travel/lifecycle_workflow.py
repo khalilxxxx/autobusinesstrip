@@ -109,6 +109,8 @@ def receipt_text(view):
         if doc['status']=='S100': effective+='本次变更已作废；如需再次变更，请选择当前有效单据核对可用操作。'
     elif doc['status']=='S100' and not doc.get('currentEffectiveId'):
         effective='\n此单已作废，当前链没有有效差旅安排，不恢复历史版本。'
+    elif result['action'] in {'withdraw','resubmit'} and not doc['isEffective']:
+        effective='\n该申请尚未形成已批准的有效安排。'
     return prefix+f"\n操作：{ {'withdraw':'撤回','void':'作废','change':'变更提交','resubmit':'原号重提'}.get(result['action'],result['action'])}；请求号 {rid}\n"+document_text(doc)+effective
 
 
@@ -150,9 +152,11 @@ class LifecycleWorkflow:
     def draft_text(self,view):
         return draft_text(view,view['draft']['targetDocument'])
 
-    def _link_receipt(self,turn_id,receipt_id):
+    def _link_receipt(self,cid,turn_id,receipt_id):
         with self.store.connection(write=True) as conn:
-            conn.execute('UPDATE assistant_lifecycle_turns SET business_request_id=? WHERE request_id=?',(receipt_id,turn_id))
+            retained=conn.execute('SELECT 1 FROM assistant_lifecycle_requests WHERE cid=? AND request_id=?',(cid,receipt_id)).fetchone()
+            if retained:
+                conn.execute('UPDATE assistant_lifecycle_turns SET business_request_id=? WHERE request_id=?',(receipt_id,turn_id))
 
     def turn(self,body):
         cid=self.conversation(body.user)
@@ -209,7 +213,7 @@ class LifecycleWorkflow:
             if re.search(r'审批|审核|批准',query):
                 return reply('助手不执行员工审批；请在模拟控制台按正常流程审批或退回。')
         if state['lastReceipt'] and state['lastReceipt']['status']=='UNKNOWN' and intent in {'WITHDRAW','VOID','CHANGE','RESUBMIT','CONFIRM','EDIT','CANCEL'}:
-            self._link_receipt(body.clientRequestId,state['lastReceipt']['clientRequestId'])
+            self._link_receipt(cid,body.clientRequestId,state['lastReceipt']['clientRequestId'])
             return reply('先核对上次未确认办理，未执行新的操作。\n'+receipt_text(self.assistant.recover(cid)))
         if intent=='CONFIRM' and re.search(r'新申请|新建',query):
             if query.strip().rstrip('。.!！').strip()!='确认提交新申请':
@@ -254,7 +258,6 @@ class LifecycleWorkflow:
             if not command.confirmation: return reply('确认信息缺失，请重新查看草稿并核对当前版本后确认。')
             request=command.confirmation.model_dump()
             request['clientRequestId']=draft.get('requestId') or body.clientRequestId
-            self._link_receipt(body.clientRequestId,request['clientRequestId'])
             return reply(receipt_text(self.assistant.submit(cid,request)))
         reference=self.assistant.reference(cid,command.reference,command.resultIndex)
         if intent=='DETAIL': return reply(document_text(self.assistant.detail(cid,reference)['selectedDocument']))
@@ -266,7 +269,10 @@ class LifecycleWorkflow:
             return reply(self.draft_text(view))
         if intent in {'WITHDRAW','VOID'}:
             expected_word='撤回' if intent=='WITHDRAW' else '作废'
-            target=r'(?:这张|这份|这个|该单|当前(?:这张|单据)?|第[一二三四五六七八九十0-9]+张|[A-Za-z0-9_.:-]+)(?:申请|单据|申请单|变更单)?'
+            identifier=r'[A-Za-z0-9_.:-]+'
+            direct_reference=rf'(?:这张|这份|这个|该单|当前(?:这张|单据)?|第[一二三四五六七八九十0-9]+张|{identifier})(?:申请|单据|申请单|变更单)?'
+            labelled_reference=rf'(?:差旅申请单|差旅申请|差旅变更单|行程变更单|变更单)\s*{identifier}'
+            target=rf'(?:{direct_reference}|{labelled_reference})'
             direct=rf'(?:(?:请|请帮我|帮我|我要|我想|我需要|现在|立即|直接)\s*)?(?:把|将)?(?:{expected_word}(?:一下)?\s*(?:{target})?|{target}\s*{expected_word}(?:一下)?)[。！!\s]*'
             if expected_word not in query or not re.fullmatch(direct,query): return reply(f'请明确要求{expected_word}具体单据，当前未办理。')
             with self.store.connection() as conn:
@@ -279,7 +285,6 @@ class LifecycleWorkflow:
                 return reply('这张变更仍在待审批（S002），需要先明确撤回，取得撤回回执后再单独作废，当前尚未作废。')
             # 原始引用传给业务服务，禁止读取重定向带来静默操作新单。
             body_action=dict(reference=reference,action=intent.lower(),clientRequestId=body.clientRequestId,expectedVersion=doc['version'])
-            self._link_receipt(body.clientRequestId,body.clientRequestId)
             return reply(receipt_text(self.assistant.action(cid,body_action)))
         return reply('请明确需要办理的单据与操作。')
 

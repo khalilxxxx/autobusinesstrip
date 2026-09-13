@@ -98,6 +98,19 @@ def test_context_confirmation_stale_after_edit_is_rejected(env):
     assert '已变化' in reply and app.state.lifecycle.list_documents({})['total']==1
 
 
+def test_stale_confirmation_replays_same_clarification_without_receipt_lookup(env):
+    app,c,cid,url=env; a,d=prepared(env)
+    old={k:v for k,v in confirm(d).items() if k!='clientRequestId'}
+    turn(env,'事由改为复盘会议',dict(intent='EDIT',patch={'remark':'复盘会议'}))
+    user=app.state.assistant_manager.store.private_conversation(cid)['dify_user']
+    body=dict(user=user,query='确认提交变更',command=dict(intent='CONFIRM',confirmation=old),clientRequestId='stale-confirm-run')
+    first=c.post('/workflow/v1/lifecycle/turn',json=body)
+    second=c.post('/workflow/v1/lifecycle/turn',json=body)
+    assert first.status_code==200 and '已变化' in first.json()['reply']
+    assert second.status_code==200 and second.json()==first.json()
+    assert app.state.lifecycle.list_documents({})['total']==1
+
+
 def test_explicit_lifecycle_confirm_without_draft_never_submits_create(env):
     reply=turn(env,'确认提交变更',{'intent':'CONFIRM'})
     assert reply['handled'] is True
@@ -248,6 +261,14 @@ def test_inquiry_conditional_and_quoted_action_never_write(env,query):
     with app.state.store.connection() as conn: assert conn.execute('SELECT count(*) FROM lifecycle_receipts').fetchone()[0]==0
 
 
+@pytest.mark.parametrize('label',['差旅申请单','差旅申请','差旅变更单','行程变更单','变更单'])
+def test_direct_action_accepts_common_document_label_before_number(env,label):
+    app,c,cid,url=env; a=complete(app.state.lifecycle,create(app.state.lifecycle))
+    result=turn(env,'请作废'+label+' '+a['applicationNo'],dict(intent='VOID',reference=a['applicationNo']))
+    assert '真实业务回执' in result['reply']
+    assert app.state.lifecycle.document(a['applicationId'])['status']=='S100'
+
+
 def test_recovery_turn_replay_projects_original_receipt_current_document(env,monkeypatch):
     app,c,cid,url=env;service=app.state.lifecycle;a=create(service);real=service.receipt
     def unavailable(rid,*args,**kwargs):
@@ -297,6 +318,15 @@ def test_change_receipt_explains_predecessor_remains_effective(env):
     app,c,cid,url=env;a,d=prepared(env)
     result=turn(env,'确认提交变更',{'intent':'CONFIRM'})
     assert '前序批准安排仍有效' in result['reply']
+
+
+def test_ordinary_withdraw_and_resubmit_explain_no_approved_arrangement(env):
+    app,c,cid,url=env; a=create(app.state.lifecycle)
+    withdrawn=turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']),'ordinary-withdraw')
+    assert 'S005' in withdrawn['reply'] and '尚未形成已批准的有效安排' in withdrawn['reply']
+    turn(env,'沿原号重提这张',dict(intent='RESUBMIT',reference=a['applicationId']))
+    resubmitted=turn(env,'确认提交原号重提',{'intent':'CONFIRM'},'ordinary-resubmit')
+    assert 'S002' in resubmitted['reply'] and '尚未形成已批准的有效安排' in resubmitted['reply']
 
 
 @pytest.mark.parametrize('query',["他说'撤销刚才的修改'",'撤销刚才的修改要收费','撤销刚才的修改之前先备份'])
