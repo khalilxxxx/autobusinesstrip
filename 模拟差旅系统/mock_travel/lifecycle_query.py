@@ -12,12 +12,16 @@ def intervals(document):
                            explanation='这是申报的移动区间；未提供具体时刻，不能判断全天处于某一城市。'))
         if i+1<len(trips):
             try:
-                start=date.fromisoformat(trip['dateTo'])+timedelta(days=1)
-                end=date.fromisoformat(trips[i+1]['dateFrom'])-timedelta(days=1)
+                arrival=date.fromisoformat(trip['dateTo'])
+                departure=date.fromisoformat(trips[i+1]['dateFrom'])
             except ValueError: continue  # 迁移老数据不推断无效日期的停留。
-            if start<=end and trip['cityTo']==trips[i+1]['cityFrom']:
-                result.append(dict(kind='stay',dateFrom=start.isoformat(),dateTo=end.isoformat(),
-                                   cityIds=[trip['cityTo']],explanation='根据相邻交通段推导的申报停留区间，并非实际定位。'))
+            # 先确认存在中间日，再计算边界，避免合法日期上下界加减溢出。
+            if departure-arrival<=timedelta(days=1) or trip['cityTo']!=trips[i+1]['cityFrom']:
+                continue
+            start=arrival+timedelta(days=1)
+            end=departure-timedelta(days=1)
+            result.append(dict(kind='stay',dateFrom=start.isoformat(),dateTo=end.isoformat(),
+                               cityIds=[trip['cityTo']],explanation='根据相邻交通段推导的申报停留区间，并非实际定位。'))
     return result
 
 
