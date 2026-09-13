@@ -88,7 +88,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('语义单据卡片', () => {
-  it('历史轮次办理入口置灰，详情和系统查看仍可用，最新轮次只使用接口资格', async () => {
+  it('历史轮次办理入口置灰，系统查看仍可用，最新轮次只使用接口资格', async () => {
     const old = document();
     const current = document({ applicationId: 'APP-2', applicationNo: 'DEMO-CL-002', status: 'S003' });
     api.lifecycle.mockResolvedValue({ ...state([current]), cardGroups: [
@@ -103,13 +103,13 @@ describe('语义单据卡片', () => {
     expect(within(oldCard).getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(true);
     expect(within(oldCard).getByRole('button', { name: '作废当前有效单据' }).hasAttribute('disabled')).toBe(true);
     expect(within(oldCard).getByRole('button', { name: '查看系统单据' }).hasAttribute('disabled')).toBe(false);
-    fireEvent.click(within(oldCard).getByText('查看详情'));
-    expect(oldCard.querySelector('details')?.open).toBe(true);
+    expect(within(oldCard).queryByText('查看详情')).toBeNull();
+    expect(oldCard.querySelector('details')).toBeNull();
     expect(within(currentCard).getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(false);
     expect(within(currentCard).queryByRole('button', { name: '撤回本次提交' })).toBeNull();
   });
 
-  it('多单据只展示前三张简卡和连续路线，查看全部为演示入口', async () => {
+  it('多单据只展示前三张统一完整卡片，查看全部为演示入口', async () => {
     const first = document();
     const docs = Array.from({ length: 4 }, (_, index) => document({ applicationId: `APP-${index + 1}`, applicationNo: `DEMO-${index + 1}`,
       request: { ...first.request, trips: [
@@ -121,7 +121,13 @@ describe('语义单据卡片', () => {
     ] });
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t1" />);
     await view.findByRole('article', { name: '差旅单据 DEMO-1' });
-    await waitFor(() => expect(view.getAllByText('杭州-北京-杭州')).toHaveLength(3));
+    await waitFor(() => expect(view.getAllByText('付款公司')).toHaveLength(3));
+    for (const card of view.getAllByRole('article')) {
+      expect(within(card).getByText('客户拜访')).not.toBeNull();
+      expect(card.querySelectorAll('.draft-trip')).toHaveLength(2);
+      expect(card.querySelector('details')).toBeNull();
+      expect(within(card).queryByText('创建并提交')).toBeNull();
+    }
     expect(view.getAllByRole('article')).toHaveLength(3);
     expect(view.queryByRole('article', { name: '差旅单据 DEMO-4' })).toBeNull();
     const all = view.getByRole('button', { name: '查看全部查询结果' });
@@ -325,7 +331,7 @@ describe('员工单据卡片办理', () => {
     const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
     api.lifecycle.mockResolvedValue(initial);
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '尚未保存的本地说明' } });
 
     const changed = document({ version: 4, status: 'S003' });
@@ -344,7 +350,7 @@ describe('员工单据卡片办理', () => {
     api.lifecycle.mockResolvedValue(initial);
     api.lifecycleSave.mockRejectedValue(new ApiError('草稿已变化', 409, 'CONFIRMATION_STALE'));
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '' } });
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
     expect(await view.findByText('请填写出差事由。')).not.toBeNull();
@@ -367,7 +373,7 @@ describe('员工单据卡片办理', () => {
     api.lifecycle.mockResolvedValue(initial);
     api.lifecycleSave.mockReturnValue(saved.promise);
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t1" />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '等待保存的修改' } });
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
     await waitFor(() => expect(api.lifecycleSave).toHaveBeenCalledTimes(1));
@@ -383,7 +389,7 @@ describe('员工单据卡片办理', () => {
     api.lifecycle.mockResolvedValue(initial);
     api.lifecycleSave.mockResolvedValue(initial);
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '这次需要提交的新事由' } });
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
     await waitFor(() => expect(api.lifecycleSave).toHaveBeenCalledTimes(1));
@@ -424,7 +430,7 @@ describe('员工单据卡片办理', () => {
     api.lifecycleSave.mockRejectedValue(new ApiError('草稿已变化', 409, 'CONFIRMATION_STALE'));
 
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '保留这次修改' } });
     fireEvent.click(view.getByRole('button', { name: '保存草稿' }));
 
@@ -452,7 +458,7 @@ describe('员工单据卡片办理', () => {
     api.lifecycleSubmit.mockRejectedValue(new ApiError('断网', 0, 'NETWORK_ERROR'));
 
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
     expect(await view.findByText(/结果待核对/)).not.toBeNull();
 
@@ -495,12 +501,12 @@ describe('员工单据卡片办理', () => {
     api.lifecycleQuery.mockResolvedValue(initial);
 
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '收起后仍需保留' } });
     fireEvent.click(view.getByRole('button', { name: '关闭生命周期编辑' }));
     view.rerender(<DocumentPanel conversationId="CID" refreshToken={1} />);
     await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
-    fireEvent.click(view.getByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(view.getByRole('button', { name: '编辑变更' }));
 
     expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('收起后仍需保留');
   });
@@ -512,7 +518,7 @@ describe('员工单据卡片办理', () => {
       .mockResolvedValueOnce({ uuid: 'O', code: 'SUCCESS', message: {}, data: options });
 
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     expect(await view.findByText(/基础选项加载失败.*主数据暂时不可用/)).not.toBeNull();
     fireEvent.click(view.getByRole('button', { name: '重试加载基础选项' }));
 
@@ -529,7 +535,7 @@ describe('员工单据卡片办理', () => {
     }));
 
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
 
     await waitFor(() => expect(api.lifecycleSubmit).toHaveBeenCalledTimes(1));
@@ -542,14 +548,14 @@ describe('员工单据卡片办理', () => {
     const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
     api.lifecycle.mockResolvedValueOnce(initial);
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    await view.findByRole('button', { name: '继续编辑变更' });
+    await view.findByRole('button', { name: '编辑变更' });
     api.lifecycle.mockResolvedValue({ ...initial, draft: { ...initial.draft!, revision: 2, fingerprint: 'fingerprint-2',
       differences: [{ field: 'remark', before: '客户拜访', after: '自然语言新说明' }],
       payload: { ...initial.draft!.payload, remark: '自然语言新说明' } } });
     view.rerender(<DocumentPanel conversationId="CID" refreshToken={1} />);
 
     await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
-    fireEvent.click(view.getByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(view.getByRole('button', { name: '编辑变更' }));
     expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('自然语言新说明');
   });
 
@@ -557,7 +563,7 @@ describe('员工单据卡片办理', () => {
     const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
     api.lifecycle.mockResolvedValueOnce(initial);
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '本地未保存说明' } });
     api.lifecycle.mockResolvedValue({ ...initial, draft: { ...initial.draft!, revision: 2, fingerprint: 'fingerprint-2',
       differences: [{ field: 'remark', before: '客户拜访', after: '自然语言新说明' }],
@@ -580,7 +586,7 @@ describe('员工单据卡片办理', () => {
     api.lifecycle.mockResolvedValueOnce(initial);
     api.lifecycleSubmit.mockRejectedValueOnce(new ApiError('断网', 0, 'NETWORK_ERROR'));
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
     await view.findByRole('button', { name: '查询办理结果' });
     const requestId = api.lifecycleSubmit.mock.calls[0][1].clientRequestId;
@@ -624,7 +630,7 @@ describe('员工单据卡片办理', () => {
     api.lifecycle.mockResolvedValue(initial);
     api.lifecycleSubmit.mockRejectedValueOnce(new ApiError('断网', 0, 'NETWORK_ERROR'));
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
-    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(await view.findByRole('button', { name: '编辑变更' }));
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
     const recoverButton = await view.findByRole('button', { name: '查询办理结果' });
     const requestId = api.lifecycleSubmit.mock.calls[0][1].clientRequestId;

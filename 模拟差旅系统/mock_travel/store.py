@@ -7,6 +7,7 @@ import sqlite3
 from uuid import uuid4
 
 from .catalog import business_time
+from .document_numbers import initialize_document_numbers, next_document_number
 
 
 class ServiceError(Exception):
@@ -44,6 +45,7 @@ class Store:
             """)
             from .lifecycle import initialize_schema
             initialize_schema(conn)
+            initialize_document_numbers(conn)
             conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('scenario',?)", (encode({
                 "submissionResult": "SUCCESS", "failureMessage": "本次为模拟提单失败场景，请稍后重试。"}),))
 
@@ -84,7 +86,7 @@ class Store:
             if existing:
                 if existing["payload_hash"] != fingerprint or existing["confirmation_key"] != confirmation:
                     raise ServiceError("REQUEST_CONFLICT", "同一请求标识不能用于不同内容或不同确认版本。", 409)
-                return json.loads(existing["result_json"])
+                return self.submission_result(conn, json.loads(existing["result_json"]))
 
             application = None
             if confirmation:
@@ -100,7 +102,7 @@ class Store:
             if application or scenario["submissionResult"] == "SUCCESS":
                 if not application:
                     app_id = "MOCK-APP-" + uuid4().hex
-                    number = "DEMO-CL-" + now["date"].replace("-", "") + "-" + uuid4().hex[:12].upper()
+                    number = next_document_number(conn)
                     conn.execute("""INSERT INTO applications
                         (id,application_no,applicant_id,created_at,payload_json,payload_hash,confirmation_key)
                         VALUES(?,?,?,?,?,?,?)""", (app_id, number, payload["applicantId"], now["datetime"],
@@ -121,6 +123,14 @@ class Store:
             return result
 
     @staticmethod
+    def submission_result(conn, result):
+        identifier = result.get('data', {}).get('applicationId')
+        if identifier:
+            row = conn.execute('SELECT application_no FROM applications WHERE id=?', (identifier,)).fetchone()
+            if row: result['data']['applicationNo'] = row['application_no']
+        return result
+
+    @staticmethod
     def application_data(row):
         return {"applicationId": row["id"], "applicationNo": row["application_no"],
                 "createdAt": row["created_at"], "demoOnly": True, "request": json.loads(row["payload_json"])}
@@ -139,4 +149,4 @@ class Store:
             if not row:
                 raise ServiceError("SUBMISSION_NOT_FOUND", "尚未找到该请求的处理记录；这不等于提交已经失败。", 404)
             return {"clientRequestId": row["request_id"], "createdAt": row["created_at"],
-                    "status": row["status"], "result": json.loads(row["result_json"])}
+                    "status": row["status"], "result": self.submission_result(conn, json.loads(row["result_json"]))}

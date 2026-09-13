@@ -33,6 +33,11 @@ export function formatDateTime(value: string): string {
   }).format(date);
 }
 
+export function formatDateRange(start: string | null | undefined, end: string | null | undefined): string {
+  if (start && start === end) return start;
+  return `${start || '待补充'} 至 ${end || '待补充'}`;
+}
+
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
 }

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from .catalog import business_time
 from .store import Store, ServiceError, encode
-from .assistant_presentation import clean_answer, draft_view, present_answer
+from .assistant_presentation import card_metadata, clean_answer, draft_view, present_answer
 
 
 def public_state(raw, synchronized=True):
@@ -120,12 +120,14 @@ class AssistantStore(Store):
         with self.connection() as conn:
             messages = conn.execute("SELECT * FROM assistant_messages WHERE conversation_id=? ORDER BY sequence", (cid,)).fetchall()
             active = conn.execute("SELECT id FROM assistant_turns WHERE conversation_id=? AND status='running'", (cid,)).fetchone()
+            numbers = {item['id']: item['application_no'] for item in conn.execute(
+                "SELECT id,application_no FROM applications WHERE applicant_id='DEMO_EMP_001'")}
         return {"id": cid, "title": row["title"], "createdAt": row["created_at"], "updatedAt": row["updated_at"],
                 "messages": [{"id": item["id"], "turnId": item["turn_id"], "role": item["role"],
                               "content": clean_answer(item["content"]) if item["role"] == "assistant" else item["content"],
                               "createdAt": item["created_at"], "status": item["status"],
-                              "draftState": json.loads(item["draft_state_json"]) if item["draft_state_json"] else None} for item in messages],
-                "state": public_state(json.loads(row["state_json"]), bool(row["synchronized"])),
+                              "draftState": card_metadata(json.loads(item["draft_state_json"]), numbers) if item["draft_state_json"] else None} for item in messages],
+                "state": card_metadata(public_state(json.loads(row["state_json"]), bool(row["synchronized"])), numbers),
                 "activeTurnId": active["id"] if active else None}
 
     @staticmethod

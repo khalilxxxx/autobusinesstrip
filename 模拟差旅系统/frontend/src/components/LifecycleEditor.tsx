@@ -11,6 +11,7 @@ interface Props {
   busy: boolean;
   locked: boolean;
   pendingRequestId?: string;
+  pendingMessage?: string;
   optionsError: string;
   optionsLoading: boolean;
   issues: ApiIssue[];
@@ -19,6 +20,7 @@ interface Props {
   onCancel: () => void;
   onSave: (payload: Payload) => void;
   onSubmit: (payload: Payload) => void;
+  onRecover: () => void;
   onRetryOptions: () => void;
 }
 
@@ -41,8 +43,8 @@ function validate(payload: Payload) {
   return errors;
 }
 
-export function LifecycleEditor({ draft, options, open, busy, locked, pendingRequestId, optionsError, optionsLoading,
-  issues, generalError, onClose, onCancel, onSave, onSubmit, onRetryOptions }: Props) {
+export function LifecycleEditor({ draft, options, open, busy, locked, pendingRequestId, pendingMessage, optionsError, optionsLoading,
+  issues, generalError, onClose, onCancel, onSave, onSubmit, onRecover, onRetryOptions }: Props) {
   const [payload, setPayload] = useState<Payload>(() => clone(draft.payload));
   const [basis, setBasis] = useState(() => ({ draftId: draft.id, revision: draft.revision, payload: clone(draft.payload) }));
   const [revisionConflict, setRevisionConflict] = useState(false);
@@ -116,10 +118,9 @@ export function LifecycleEditor({ draft, options, open, busy, locked, pendingReq
           <span><strong>草稿已更新到 revision {draft.revision}。</strong>当前页面保留了未保存输入。请核对后使用最新草稿内容，再继续编辑。</span>
           <button type="button" onClick={adoptLatest}>使用最新草稿内容</button>
         </div>}
-        {draft.requestId && <div className="lifecycle-warning"><AlertCircle />
-          <span>办理结果待核对，已保留原请求号 {draft.requestId}。请先查询回执。</span></div>}
-        {locked && !draft.requestId && <div className="lifecycle-warning"><AlertCircle />
-          <span>办理结果待核对，已保留原请求号 {pendingRequestId}。请先查询办理结果，完成前不能保存、提交或放弃草稿。</span></div>}
+        {(draft.requestId || locked) && <div className="lifecycle-warning"><AlertCircle />
+          <span>{pendingMessage || `办理结果待核对，已保留原请求号 ${draft.requestId || pendingRequestId}。请先查询办理结果，完成前不能保存、提交或放弃草稿。`}</span>
+          <button type="button" onClick={onRecover} disabled={busy}>查询办理结果</button></div>}
         {optionsError && <div className="lifecycle-warning"><AlertCircle />
           <span>基础选项加载失败：{optionsError}</span>
           <button type="button" onClick={onRetryOptions} disabled={optionsLoading}>{optionsLoading ? '正在重新加载' : '重试加载基础选项'}</button>

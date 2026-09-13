@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertCircle, ArrowRight, Bot, CheckCircle2, Clock3, History, LoaderCircle,
+  AlertCircle, ArrowRight, Bot, Clock3, History, LoaderCircle,
   Menu, MessageSquarePlus, PanelLeftClose, RefreshCw, Send, Server, Sparkles, Trash2, UserRound, X,
 } from 'lucide-react';
 import { assistantApi } from '../api';
@@ -13,7 +13,7 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { DraftCard } from './DraftCard';
 import { DraftDrawer } from './DraftDrawer';
 import { DeleteConversationDialog } from './DeleteConversationDialog';
-import { DocumentPanel, LifecycleCards, LifecycleControls } from './DocumentPanel';
+import { DocumentPanel, LifecycleCards, LifecycleFeedback } from './DocumentPanel';
 
 const examples = [
   '我下周一从杭州去桐庐拜访客户，当天高铁往返。',
@@ -562,22 +562,14 @@ export function AssistantPage() {
                 </article>
               )}
               <LifecycleCards />
+              <LifecycleFeedback />
               <div ref={messagesEndRef} />
             </div>
           )}
+          {error && <div className="chat-feedback message-bubble" role="alert"><p>{error}</p><button onClick={() => void initialise()}><RefreshCw size={15} />重新连接</button></div>}
         </section>
 
         <div className="chat-actions">
-          <LifecycleControls />
-          {error && <div className="notice error-notice"><AlertCircle size={18} /><span>{error}</span><button onClick={() => void initialise()}><RefreshCw size={15} />重新连接</button></div>}
-          {submission && (
-            <div className={`submission-card ${submission.status.toLowerCase()}`}>
-              {submission.applicationId ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-              <div><strong>{submission.applicationNo ? `模拟申请 ${submission.applicationNo}` : (submission.message || '已记录提交结果')}</strong>
-                {submission.applicationId && <a href={`/simulator?applicationId=${encodeURIComponent(submission.applicationId)}`}>在模拟系统中查看 <ArrowRight size={14} /></a>}
-              </div>
-            </div>
-          )}
           <div className={`composer ${pageLocked ? 'busy' : ''}`}>
             <textarea
               ref={composerRef}

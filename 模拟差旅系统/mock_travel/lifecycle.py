@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 from .catalog import CITIES, business_time, employee_context, transport_options
+from .document_numbers import next_document_number
 from .models import ApplicationRequest
 from .store import ServiceError, encode
 
@@ -104,7 +105,8 @@ class LifecycleService:
     def __init__(self,store): self.store=store
 
     def _row(self,conn,reference,applicant_id=None):
-        row=conn.execute(JOIN+' WHERE (a.id=? OR a.application_no=?)',(reference,reference)).fetchone()
+        row=conn.execute(JOIN+''' WHERE (a.id=? OR a.application_no=? OR a.id=(
+            SELECT application_id FROM document_number_aliases WHERE alias=?))''',(reference,reference,reference)).fetchone()
         if not row or (applicant_id is not None and row['applicant_id']!=applicant_id):
             raise ServiceError('APPLICATION_NOT_FOUND','未找到当前员工的这张单据。',404)
         return row
@@ -161,6 +163,10 @@ class LifecycleService:
             for old in conn.execute(JOIN+' WHERE a.applicant_id=? AND d.replacement_id IS NOT NULL',(applicant_id,)).fetchall():
                 current=self._document(conn,old['id'],applicant_id)['applicationId']
                 aliases.setdefault(current,[]).extend([old['id'],old['application_no']])
+            for old in conn.execute('''SELECT n.alias,n.application_id FROM document_number_aliases n
+                JOIN applications a ON a.id=n.application_id WHERE a.applicant_id=?''',(applicant_id,)).fetchall():
+                current=self._document(conn,old['application_id'],applicant_id)['applicationId']
+                aliases.setdefault(current,[]).append(old['alias'])
             return query_documents(documents,filters,aliases)
 
     def operate(self,reference,action,request_id,expected_version,payload=None,reason=None,applicant_id=EMPLOYEE):
@@ -175,6 +181,9 @@ class LifecycleService:
             if row['replacement_id'] or json.loads(row['payload_json']) != result['document']['request']:
                 result={**result,'document':self._document(conn,row['id'],applicant_id),
                         'documentResolvedToCurrent':True}
+            else:
+                root=conn.execute('SELECT application_no FROM applications WHERE id=?',(row['root_id'],)).fetchone()[0]
+                result={**result,'document':{**result['document'],'applicationNo':row['application_no'],'rootNo':root}}
         return result
 
     def receipt(self,request_id,applicant_id=EMPLOYEE):
@@ -236,7 +245,7 @@ class LifecycleService:
         now=business_time()['datetime']; target=row['id']
         if action=='change':
             target='MOCK-APP-'+uuid4().hex
-            number='DEMO-BG-'+business_time()['date'].replace('-','')+'-'+uuid4().hex[:12].upper()
+            number=next_document_number(conn)
             serialized=encode(payload)
             conn.execute('INSERT INTO applications(id,application_no,applicant_id,created_at,payload_json,payload_hash) VALUES(?,?,?,?,?,?)',
                          (target,number,row['applicant_id'],now,serialized,hashlib.sha256(serialized.encode()).hexdigest()))

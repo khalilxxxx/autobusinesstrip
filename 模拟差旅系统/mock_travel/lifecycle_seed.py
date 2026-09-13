@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import hashlib
 import json
 from .catalog import business_time
+from .document_numbers import next_document_number
 from .lifecycle import initialize_document
 from .store import encode
 
@@ -21,7 +22,7 @@ def seed_documents(service):
                              dict(dateFrom=end,dateTo=end,cityFrom='DEMO_SHANGHAI',cityTo='330100',tool='火车-二等座')])
             serialized=encode(payload)
             conn.execute('INSERT INTO applications(id,application_no,applicant_id,created_at,payload_json,payload_hash) VALUES(?,?,?,?,?,?)',
-                         (identifier,'DEMO-SEED-'+name,'DEMO_EMP_001',now['datetime'],serialized,hashlib.sha256(serialized.encode()).hexdigest()))
+                         (identifier,next_document_number(conn),'DEMO_EMP_001',now['datetime'],serialized,hashlib.sha256(serialized.encode()).hexdigest()))
             initialize_document(conn,conn.execute('SELECT * FROM applications WHERE id=?',(identifier,)).fetchone())
             ids.append(identifier); return identifier
         def advance(identifier,action,payload=None):

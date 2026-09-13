@@ -1,5 +1,21 @@
 """将工作流状态投影为卡片数据；业务状态与原始字段不在展示层修改。"""
 import re
+from .catalog import employee_context
+
+
+def card_metadata(state, application_numbers):
+    """更新历史卡片的演示标签，保留原始确认数据和业务快照。"""
+    if not state: return state
+    result = {**state}
+    if state.get('draft'):
+        draft = result['draft'] = {**state['draft']}
+        context = employee_context()
+        if draft.get('department') == '演示业务部': draft['department'] = context['defaultDepartment']['name']
+        if draft.get('payerCompany') == '演示科技公司': draft['payerCompany'] = context['defaultPayerCompany']['name']
+    submission = state.get('lastSubmission')
+    if submission and submission.get('applicationId') in application_numbers:
+        result['lastSubmission'] = {**submission, 'applicationNo': application_numbers[submission['applicationId']]}
+    return result
 
 
 def draft_view(draft):
@@ -17,6 +33,10 @@ def draft_view(draft):
                  "toCity": value(t, "to_city", "resolved_to"), "departDate": value(t, "depart_date"),
                  "arriveDate": value(t, "arrive_date"), "transport": value(t, "transport", "resolved_transport")}
                 for t in draft["trips"]]}
+    # 旧演示草稿只更新展示名称，不改变原始草稿或确认指纹。
+    context = employee_context()
+    if result['department'] == '演示业务部': result['department'] = context['defaultDepartment']['name']
+    if result['payerCompany'] == '演示科技公司': result['payerCompany'] = context['defaultPayerCompany']['name']
     result["editTrips"] = [{**view, "fromCity": value(trip, "from_city") or view["fromCity"],
                            "toCity": value(trip, "to_city") or view["toCity"]}
                           for trip, view in zip(draft["trips"], result["trips"])]

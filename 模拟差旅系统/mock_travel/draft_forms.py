@@ -11,6 +11,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from .store import ServiceError, encode
+from .catalog import employee_context
 
 NODES = Path(__file__).resolve().parents[2] / "交付物/完整Demo_Dify接入/nodes"
 
@@ -78,6 +79,10 @@ def form_answers_transport_scope(question, trips):
 
 async def prepare_form(app, state, payload):
     draft = copy.deepcopy(state["draft"])
+    context = employee_context()
+    # 名称调整后，旧草稿在本次编辑校验中采用同一组织的新名称；后续仍生成新确认版本。
+    if draft.get('department') == '演示业务部': draft['department'] = context['defaultDepartment']['name']
+    if draft.get('payer_company') == '演示科技公司': draft['payer_company'] = context['defaultPayerCompany']['name']
     old = {t["id"]: t for t in draft.get("trips", [])}
     edits = payload.edits
     if len({t.id for t in edits.trips}) != len(edits.trips):

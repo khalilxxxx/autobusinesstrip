@@ -73,7 +73,7 @@ def create_app(db_path=None, *, dify_service=None):
     app.mount("/ui", StaticFiles(directory=str(frontend), check_dir=False), name="assistant-assets")
     request_example = json.loads((BASE / "examples" / "create-application.json").read_text())
     created_example = {"action": "AI_CREATE", "demoOnly": True, "clientRequestId": "demo-submit-001",
-                       "applicationId": "MOCK-APP-EXAMPLE", "applicationNo": "DEMO-CL-20260911-EXAMPLE",
+                       "applicationId": "MOCK-APP-EXAMPLE", "applicationNo": "123000001",
                        "createdAt": "2026-09-11T16:00:00+08:00"}
     application_example = {key: created_example[key] for key in ("applicationId", "applicationNo", "createdAt", "demoOnly")}
     application_example["request"] = request_example

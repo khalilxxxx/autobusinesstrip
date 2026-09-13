@@ -20,8 +20,8 @@ def business_time():
 
 
 def employee_context():
-    department = {"id": "DEMO_DEPT_001", "name": "演示业务部"}
-    company = {"id": "DEMO_COMPANY_001", "name": "演示科技公司"}
+    department = {"id": "DEMO_DEPT_001", "name": "数字化部"}
+    company = {"id": "DEMO_COMPANY_001", "name": "杭州某科技公司"}
     return {
         "employee": {"employeeId": "DEMO_EMP_001", "employeeName": "演示员工",
                      "baseCity": {"cityId": "330100", "cityName": "杭州"}},

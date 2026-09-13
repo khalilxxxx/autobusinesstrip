@@ -104,24 +104,15 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .travel-document-card { margin-bottom: 12px; }
 .travel-document-card .draft-card-heading > div { min-width: 0; }
 .travel-document-card .draft-card-heading small { overflow-wrap: anywhere; }
-.travel-document-card.compact .draft-card-heading { padding-top: 12px; padding-bottom: 12px; }
 .travel-document-status { flex-shrink: 0; padding: 5px 8px; border-radius: 6px; color: #79609b; background: #eee7f6; font-size: 10px; }
 .travel-document-status.status-S004 { color: #287b5a; background: #e8f6ee; }
 .travel-document-status.status-S100 { color: #927e89; background: #f2ebee; }
 .travel-document-date { display: flex; gap: 6px; align-items: center; margin: 12px 16px 0; color: #8b7e9b; font-size: 11px; }
-.travel-document-route { margin: 10px 16px 13px; color: #625375; font-size: 13px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
-.travel-document-details { margin: 0 16px 12px; }
-.travel-document-details > .draft-overview { padding-left: 0; padding-right: 0; }
-.travel-document-details > .draft-trips { padding-left: 0; padding-right: 0; }
-.travel-document-card summary { cursor: pointer; color: #8b789c; font-size: 11px; }
 .travel-document-card footer { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 15px; border-top: 1px solid #f0ebf5; }
-.travel-document-card footer button, .lifecycle-controls > button, .query-all-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 10px; min-height: 32px; border: 1px solid #e1d7ee; border-radius: 8px; color: #7c62a6; background: #fcfaff; font-size: 11px; cursor: pointer; }
+.travel-document-card footer button, .lifecycle-feedback button, .chat-feedback button, .query-all-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 10px; min-height: 32px; border: 1px solid #e1d7ee; border-radius: 8px; color: #7c62a6; background: #fcfaff; font-size: 11px; cursor: pointer; }
 .travel-document-card footer .system-document-button { margin-right: auto; color: #7e728e; background: white; }
 .travel-document-card footer button.danger { color: #ae596b; border-color: #eed2da; background: #fff8fa; }
 .travel-document-card footer button:disabled { opacity: .45; cursor: not-allowed; }
-.lifecycle-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 8px; }
-.lifecycle-controls:empty { display: none; }
-.lifecycle-controls .document-error, .lifecycle-controls .document-notice { flex-basis: 100%; margin: 0; }
 .document-action-dialog { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .document-action-dialog h2 { margin-top: 0; }
 .document-action-dialog .delete-dialog-actions { flex-wrap: wrap; }
@@ -324,13 +315,6 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .document-actions button:disabled { opacity: .48; cursor: not-allowed; }
 .action-reasons { margin-top: 8px; }
 .action-reasons p { margin: 3px 0; color: #9993a1; font-size: 9px; line-height: 1.45; }
-.document-history { margin: 0; padding: 0; list-style: none; }
-.document-history li { position: relative; display: flex; justify-content: space-between; gap: 10px; padding: 8px 0 8px 14px; border-bottom: 1px solid #ece8ef; }
-.document-history li::before { content: ''; position: absolute; top: 13px; left: 1px; width: 6px; height: 6px; border-radius: 50%; background: #806edd; }
-.document-history strong { font-size: 9.5px; }
-.document-history span { color: #9993a1; font-size: 9px; }
-.document-draft-banner { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid #ded8ea; color: #6e618f; background: #f3f0ff; font-size: 10px; }
-.document-draft-banner button { border: 0; border-radius: 7px; padding: 6px 9px; color: white; background: #6d59d7; cursor: pointer; font-size: 9.5px; }
 
 .lifecycle-editor-layer { position: fixed; z-index: 90; inset: 0; display: flex; justify-content: flex-end; }
 .lifecycle-editor { position: relative; width: min(640px, calc(100% - 46px)); height: 100%; display: flex; flex-direction: column; color: #3f3a4b; background: #f9f8fc; box-shadow: -18px 0 50px rgba(35,27,75,.2); }
@@ -530,3 +514,5 @@ td { color: #575360; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+.lifecycle-feedback { margin: 14px 0; }
+.chat-feedback { width: min(880px, calc(100% - 72px)); margin: 16px auto; }

@@ -277,7 +277,7 @@ export function DraftDrawer({ draft, submitting, submitLabel = '提交单据', s
           <dl className="drawer-identity">
             <div><dt>申请人</dt><dd>{draft.applicantName}</dd></div>
             <div><dt>部门</dt><dd>{draft.department}</dd></div>
-            <div><dt>费用承担公司</dt><dd>{draft.payerCompany}</dd></div>
+            <div><dt>付款公司</dt><dd>{draft.payerCompany}</dd></div>
           </dl>
           <div className="drawer-grid">
             <label className="drawer-field"><span>差旅类型</span><select aria-label="差旅类型" value={edits.travelType} disabled={submitting || resultUnknown} onChange={(event) => setEdits((current) => ({ ...current, travelType: event.target.value as DraftEdits['travelType'] }))}><option value="NORMAL">普通差旅</option><option value="SHORT_TERM">短期异地办公</option></select></label>

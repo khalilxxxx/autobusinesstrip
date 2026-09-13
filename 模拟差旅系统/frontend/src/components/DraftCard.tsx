@@ -1,5 +1,6 @@
 import { ArrowRight, CircleAlert, FilePenLine, Send } from 'lucide-react';
 import type { ConversationState } from '../types';
+import { formatDateRange } from '../utils';
 
 interface DraftCardProps {
   state: ConversationState;
@@ -30,7 +31,7 @@ export function DraftCard({
   return (
     <section className={`draft-card ${current ? 'current' : 'historical'} ${failed ? 'failed' : ''} ${submitted ? 'submitted' : ''}`} aria-label={label}>
       <div className="draft-card-heading">
-        <div><FilePenLine size={18} /><span><strong>差旅申请草稿</strong><small>版本 {draft.revision}</small></span></div>
+        <div><FilePenLine size={18} /><span><strong>差旅申请草稿</strong><small>{state.lastSubmission?.applicationNo || `版本 ${draft.revision}`}</small></span></div>
         <span className={`draft-badge ${failed || unknown || incomplete ? 'warning' : ''}`}>
           {failed ? '提交失败' : submitted ? '已提交' : unknown ? '结果待确认' : current ? (incomplete ? '待补充' : '待提交') : '历史版本'}
         </span>
@@ -39,7 +40,7 @@ export function DraftCard({
       <dl className="draft-overview">
         <div><dt>申请人</dt><dd>{draft.applicantName || '待补充'}</dd></div>
         <div><dt>部门</dt><dd>{draft.department || '待补充'}</dd></div>
-        <div><dt>费用承担公司</dt><dd>{draft.payerCompany || '待补充'}</dd></div>
+        <div><dt>付款公司</dt><dd>{draft.payerCompany || '待补充'}</dd></div>
         <div><dt>差旅类型</dt><dd>{draft.travelType === 'SHORT_TERM' ? '短期异地办公' : '普通差旅'}</dd></div>
         <div className="wide"><dt>出差事由</dt><dd>{draft.reason || '待补充'}</dd></div>
       </dl>
@@ -48,7 +49,7 @@ export function DraftCard({
         {draft.trips.length === 0 ? <p className="draft-empty"><CircleAlert size={15} />还没有完整行程，请继续补充。</p> : draft.trips.map((trip, index) => (
           <div className="draft-trip" key={trip.id || `${index}`}>
             <span className="draft-trip-number">{index + 1}</span>
-            <span><strong>{trip.fromCity || '待补充'} <ArrowRight size={13} /> {trip.toCity || '待补充'}</strong><small>{trip.departDate || '待补充'} 至 {trip.arriveDate || '待补充'}</small></span>
+            <span><strong>{trip.fromCity || '待补充'} <ArrowRight size={13} /> {trip.toCity || '待补充'}</strong><small>{formatDateRange(trip.departDate, trip.arriveDate)}</small></span>
             <small>{trip.transport || '交通待补充'}</small>
           </div>
         ))}

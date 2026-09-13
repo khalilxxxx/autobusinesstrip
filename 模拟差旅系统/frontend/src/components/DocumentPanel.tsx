@@ -1,7 +1,6 @@
 import { createContext, useContext, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle } from 'lucide-react';
 import { assistantApi } from '../api';
 import type { ApiIssue, LifecycleDocument, LifecycleOptions, LifecyclePendingAction, LifecycleState, TravelApplication } from '../types';
 import { errorMessage } from '../utils';
@@ -55,10 +54,10 @@ function terminalReceiptFor(value: LifecycleState, clientRequestId: string) {
     && !value.draft?.requestId;
 }
 
-type LifecycleContextValue = { conversationId: string | null; renderCards: (turnId?: string) => ReactNode; controls: ReactNode };
+type LifecycleContextValue = { conversationId: string | null; renderCards: (turnId?: string) => ReactNode; feedback: ReactNode };
 const LifecycleContext = createContext<LifecycleContextValue | null>(null);
 export function LifecycleCards({ turnId }: { turnId?: string }) { return useContext(LifecycleContext)?.renderCards(turnId) || null; }
-export function LifecycleControls() { return useContext(LifecycleContext)?.controls || null; }
+export function LifecycleFeedback() { return useContext(LifecycleContext)?.feedback || null; }
 
 type DocumentPanelProps = { conversationId: string | null; refreshToken: unknown; children?: ReactNode; busy?: boolean; latestTurnId?: string | null };
 
@@ -347,18 +346,11 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, late
     } finally { submittingDraftRef.current = false; endLoading(loadingOwner); }
   }
 
-  const controls = <div className="lifecycle-controls">
-    {state.draft && <button type="button" onClick={() => setEditing(true)} disabled={loading || busy}>
-      继续编辑{state.draft.mode === 'change' ? '变更' : '重提'}
-    </button>}
-    {pending && <button type="button" onClick={() => void recover()} disabled={loading || busy}>查询办理结果</button>}
-    {state.pendingAction && !pending && <button type="button" disabled={loading || busy} onClick={() => { setError(''); setProposal(state.pendingAction!); }}>
-      核对{state.pendingAction.action === 'withdraw' ? '撤回' : '作废'}：{state.pendingAction.targetDocument.applicationNo}
-    </button>}
-    {error && <p className="document-error"><AlertCircle />{error}</p>}
-    {notice && <p className="document-notice"><AlertCircle />{notice}</p>}
-    {state.lastReceipt?.result.documentResolvedToCurrent && <p className="document-notice">已找到原操作回执；卡片展示当前可见内容。</p>}
-  </div>;
+  const feedback = !editing && !proposal && (pending || error) ? <div className="lifecycle-feedback message-bubble" role="status">
+    {error && <p>{error}</p>}
+    {pending && <><p>{notice || '办理结果待核对，请查询原请求结果。'}</p>
+      <button type="button" onClick={() => void recover()} disabled={loading || busy}>查询办理结果</button></>}
+  </div> : null;
 
   function renderCards(turnId?: string) {
     let groups = (state.cardGroups || []).filter((group) => turnId ? group.turnId === turnId : group.turnId === null);
@@ -383,7 +375,7 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, late
           busy={loading || busy || Boolean(pending)} onEdit={() => setEditing(true)} onSubmit={() => setEditing(true)} /> : <>
           {!documents.length && <p className="document-empty">没有找到相关单据，可以换个时间或城市继续问我。</p>}
           {documents.map((doc) => <TravelDocumentCard key={doc.applicationId} doc={doc} options={options}
-            current={current && group.kind !== 'draft'} compact={documents.length > 1}
+            current={current && group.kind !== 'draft'}
             busy={loading || busy || Boolean(pending)} onAction={(target, name) => void proposeAction(target, name)} onPrepare={(target, mode) => void prepare(target, mode)} />)}
           {(group.total || 0) > 3 && <button type="button" className="query-all-button" title="演示入口">查看全部查询结果</button>}
         </>}
@@ -392,15 +384,16 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, late
   }
 
   useLayoutEffect(() => {
-    publish({ conversationId, renderCards, controls });
-  }, [conversationId, state, options, loading, busy, latestTurnId, pending, error, notice, publish]);
+    publish({ conversationId, renderCards, feedback });
+  }, [conversationId, state, options, loading, busy, latestTurnId, pending, error, notice, editing, proposal, publish]);
 
   return <>
     {typeof document !== 'undefined' && createPortal(<>
       {proposal && <DocumentActionDialog key={proposal.id} proposal={proposal} busy={loading || busy || Boolean(pending)} error={error}
         onCancel={() => void cancelAction()} onConfirm={(reason) => void action(proposal, reason)} />}
       {state.draft && <LifecycleEditor draft={state.draft} options={options} open={editing} busy={loading || busy} locked={Boolean(pending)}
-        pendingRequestId={pending?.body.clientRequestId} optionsError={optionsError} optionsLoading={optionsLoading} issues={issues} generalError={error}
+        pendingRequestId={pending?.body.clientRequestId} pendingMessage={notice} optionsError={optionsError} optionsLoading={optionsLoading} issues={issues} generalError={error}
+        onRecover={() => void recover()}
         onClose={() => setEditing(false)} onCancel={() => conversationId && !pending && void run(() => assistantApi.lifecycleCancelDraft(conversationId), false)}
         onSave={(payload) => void saveDraft(payload)} onSubmit={(payload) => void submitDraft(payload)} onRetryOptions={() => void loadOptions()} />}
     </>, document.body)}
@@ -411,6 +404,6 @@ export function DocumentPanel(props: DocumentPanelProps) {
   const [context, setContext] = useState<LifecycleContextValue | null>(null);
   return <LifecycleContext.Provider value={context?.conversationId === props.conversationId ? context : null}>
     <DocumentPanelSession key={props.conversationId || 'no-conversation'} {...props} publish={setContext} />
-    {props.children || <><LifecycleCards /><LifecycleControls /></>}
+    {props.children || <><LifecycleCards /><LifecycleFeedback /></>}
   </LifecycleContext.Provider>;
 }
