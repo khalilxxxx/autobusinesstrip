@@ -23,7 +23,8 @@ def context():
     return run('N02',query='安排出差',cv_session='{}',demo_reference_date='2026-09-12',run_id='test',api_body=envelope(data))
 def field(x): return {'value':x,'source':'USER' if x else '', 'evidence':x}
 def candidate(to='深圳北站',transport='高铁二等座'):
-    draft={'draft_id':'D-test','revision':1,'next_trip_id':3,'applicant_id':'DEMO_EMP_001','applicant_name':'演示员工','department':'演示业务部','payer_company':'演示科技公司','travel_type':'NORMAL','reason':'拜访"新客户"\n沟通方案','all_transport':field(''),'scope_requests':dict(companions='',activity='',excluded=''),'basic_sources':{},'open_clarifications':[],'trips':[]}
+    employee=CAT['employee_context']()
+    draft={'draft_id':'D-test','revision':1,'next_trip_id':3,'applicant_id':'DEMO_EMP_001','applicant_name':'演示员工','department':employee['defaultDepartment']['name'],'payer_company':employee['defaultPayerCompany']['name'],'travel_type':'NORMAL','reason':'拜访"新客户"\n沟通方案','all_transport':field(''),'scope_requests':dict(companions='',activity='',excluded=''),'basic_sources':{},'open_clarifications':[],'trips':[]}
     for i, (a,b,k,dt) in enumerate([('',to,'OUTBOUND','2026-09-14'),('','','RETURN','2026-09-15')],1):
         draft['trips'].append(dict(id='T'+str(i),kind=k,from_city=field(a),to_city=field(b),depart_date=field(dt),arrive_date=field(''),transport=field(transport)))
     return {'draft':draft,'action':'REVIEW','merge_error':'','dialogue':{'focus':{'draft_id':'','revision':0,'questions':[]},'recovery':{}}}

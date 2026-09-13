@@ -8,4 +8,4 @@
 2. 新功能使用新建的独立 Dify 工作流应用。保留当前 Dify 工作流，不修改它的节点、配置或发布内容。新旧应用应具有不同的应用 ID；不能把旧应用内修改后重发布当作新建工作流。
 3. 用户已于 2026-09-13 明确要求“开始实现”。原版已提交为 demo-baseline-20260913；本工作树用于新版实现，原目录和旧 Dify 应用保持不变。
 
-本次需求和执行约束见 [差旅单据生命周期扩展需求分析](/Users/khalil/Documents/智能提单项目/docs/superpowers/specs/2026-09-13-travel-document-lifecycle-requirements.md)。该文档区分已确认业务规则、建议方案和后续对接事项，不能将建议自动视为用户已确认。
+当前系统需求见 [需求说明](docs/需求说明.md)，部署见 [部署指南](docs/部署指南.md)。本次扩展的历史讨论见 [差旅单据生命周期扩展需求分析](docs/superpowers/specs/2026-09-13-travel-document-lifecycle-requirements.md)；其中未确认的建议不能自动视为用户已确认，后续明确修订以当前需求说明为准。
