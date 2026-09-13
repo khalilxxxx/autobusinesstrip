@@ -116,6 +116,10 @@ export const assistantApi = {
       `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/action`,
       { method: 'POST', body: JSON.stringify(payload) },
     ),
+  lifecycleRecover: (id: string) => requestJson<LifecycleState>(
+    `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/recover`,
+    { method: 'POST', body: '{}' },
+  ),
   lifecycleCancelDraft: (id: string) => requestJson<LifecycleState>(
     `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/draft`, { method: 'DELETE' },
   ),

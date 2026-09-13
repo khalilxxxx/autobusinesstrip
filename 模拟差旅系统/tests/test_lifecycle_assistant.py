@@ -122,3 +122,23 @@ def test_existing_foreign_business_request_cannot_be_claimed_as_own_success(env)
     assert response.status_code==409
     assert service.document(a['applicationId'])['status']=='S002'
     assert c.get(url).json()['lastReceipt'] is None
+
+
+def test_recover_route_syncs_failed_receipt_and_unlocks_draft(env, monkeypatch):
+    app,c,cid,url=env; service=app.state.lifecycle
+    target,d=prepared(env)
+    original_operate=service.operate
+    monkeypatch.setattr(service,'operate',lambda *args,**kwargs: (_ for _ in ()).throw(RuntimeError('response lost')))
+    response=c.post(url+'/submit',json=confirm(d,'recover-failed'))
+    assert response.status_code==200
+    assert response.json()['lastReceipt']['status']=='UNKNOWN'
+    assert response.json()['draft']['requestId']=='recover-failed'
+
+    monkeypatch.setattr(service,'operate',original_operate)
+    original_operate(target['applicationId'],'void','make-stale',target['version'])
+    response=c.post(url+'/recover',json={})
+    assert response.status_code==409
+    assert response.json()['error']['code'] in {'ACTION_NOT_ALLOWED','VERSION_CONFLICT'}
+    current=c.get(url).json()
+    assert current['lastReceipt']['status']=='FAILED'
+    assert 'requestId' not in current['draft']

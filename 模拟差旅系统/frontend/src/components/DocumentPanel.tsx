@@ -10,7 +10,7 @@ const PENDING_KEY = 'travelLifecyclePendingOperation';
 
 type PendingOperation = {
   conversationId: string;
-  kind: 'action' | 'submit';
+  kind: 'action' | 'submit' | 'recover';
   body: Record<string, unknown> & { clientRequestId: string };
 };
 
@@ -42,6 +42,21 @@ function readPendingOperations(): Record<string, PendingOperation> {
 
 function readPending(conversationId: string): PendingOperation | null {
   return readPendingOperations()[conversationId] || null;
+}
+
+function writePending(operation: PendingOperation) {
+  localStorage.setItem(PENDING_KEY, JSON.stringify({ ...readPendingOperations(), [operation.conversationId]: operation }));
+}
+
+function unresolvedRequestId(value: LifecycleState) {
+  if (value.lastReceipt?.status === 'UNKNOWN') return value.lastReceipt.clientRequestId;
+  return value.draft?.requestId || null;
+}
+
+function terminalReceiptFor(value: LifecycleState, clientRequestId: string) {
+  return value.lastReceipt?.clientRequestId === clientRequestId
+    && ['SUCCEEDED', 'FAILED'].includes(value.lastReceipt.status)
+    && !value.draft?.requestId;
 }
 
 function cityLabel(options: LifecycleOptions | null, cityId: string) {
@@ -94,15 +109,32 @@ function DocumentPanelSession({ conversationId, refreshToken }: DocumentPanelPro
       || (current && next.draft?.targetDocument.applicationId === current.applicationId ? next.draft.targetDocument : null));
   }, []);
 
+  const restoreServerPending = useCallback((id: string, next: LifecycleState) => {
+    const clientRequestId = unresolvedRequestId(next);
+    if (!clientRequestId) return;
+    setPending((current) => {
+      if (current?.conversationId === id && current.body.clientRequestId === clientRequestId) return current;
+      if (current?.conversationId === id) return current;
+      const operation: PendingOperation = { conversationId: id, kind: 'recover', body: { clientRequestId } };
+      writePending(operation);
+      return operation;
+    });
+  }, []);
+
   const refresh = useCallback(async (id: string) => {
     const request = ++requestRef.current;
     try {
       const next = await assistantApi.lifecycle(id);
-      if (request === requestRef.current) applyState(next);
+      if (request === requestRef.current) {
+        applyState(next);
+        restoreServerPending(id, next);
+        return next;
+      }
     } catch (reason) {
       if (request === requestRef.current) setError(errorMessage(reason));
     }
-  }, [applyState]);
+    return null;
+  }, [applyState, restoreServerPending]);
 
   useEffect(() => {
     if (!conversationId) { setState(emptyState()); setSelected(null); setEditing(false); setPending(null); return; }
@@ -170,7 +202,7 @@ function DocumentPanelSession({ conversationId, refreshToken }: DocumentPanelPro
   }
 
   function remember(operation: PendingOperation) {
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ ...readPendingOperations(), [operation.conversationId]: operation }));
+    writePending(operation);
     setPending(operation);
   }
 
@@ -186,25 +218,70 @@ function DocumentPanelSession({ conversationId, refreshToken }: DocumentPanelPro
 
   async function performPending(operation: PendingOperation) {
     if (!conversationId) return;
+    if (operation.kind === 'recover') return;
     const result = operation.kind === 'submit'
       ? await assistantApi.lifecycleSubmit(conversationId, operation.body as never)
       : await assistantApi.lifecycleAction(conversationId, operation.body as never);
-    applyState(result); forget(); setEditing(Boolean(result.draft)); setNotice('办理结果已同步。');
+    applyState(result);
+    setEditing(Boolean(result.draft));
+    if (!terminalReceiptFor(result, operation.body.clientRequestId)) {
+      restoreServerPending(conversationId, result);
+      setNotice(result.draft?.requestId ? '' : `办理结果待核对，已保留原请求号 ${operation.body.clientRequestId}。`);
+      return;
+    }
+    forget(); setNotice('办理结果已同步。');
+  }
+
+  async function refreshAfterRecoveryError(reason: unknown, clientRequestId: string) {
+    if (!conversationId) return;
+    const latest = await refresh(conversationId);
+    if (!latest) return;
+    setEditing(Boolean(latest.draft));
+    if (!terminalReceiptFor(latest, clientRequestId)) {
+      restoreServerPending(conversationId, latest);
+    } else {
+      forget();
+    }
+    setError(errorMessage(reason));
+  }
+
+  async function syncAssistantReceipt(clientRequestId: string) {
+    if (!conversationId) return;
+    try {
+      const result = await assistantApi.lifecycleRecover(conversationId);
+      applyState(result);
+      setEditing(Boolean(result.draft));
+      if (!terminalReceiptFor(result, clientRequestId)) {
+        restoreServerPending(conversationId, result);
+        setNotice(`尚未取得原请求 ${clientRequestId} 的终态，已继续保留该请求号。`);
+      } else {
+        forget();
+        setNotice('办理结果已同步。');
+      }
+    } catch (reason) {
+      await refreshAfterRecoveryError(reason, clientRequestId);
+    }
   }
 
   async function recover() {
     if (!pending || !conversationId) return;
     const loadingOwner = beginLoading(); setError(''); setNotice('');
     try {
-      const receipt = await assistantApi.lifecycleReceipt(pending.body.clientRequestId);
-      if (receipt.data.status === 'FAILED') {
-        forget(); await refresh(conversationId); setError(String(receipt.data.result.message || '办理失败，请核对单据状态。')); return;
+      if (pending.kind === 'recover') {
+        await syncAssistantReceipt(pending.body.clientRequestId);
+        return;
       }
-      await performPending(pending);
+      const receipt = await assistantApi.lifecycleReceipt(pending.body.clientRequestId);
+      if (receipt.data.status === 'FAILED' || receipt.data.status === 'SUCCEEDED') await syncAssistantReceipt(pending.body.clientRequestId);
+      else await performPending(pending);
     } catch (reason) {
       const value = reason as { code?: string };
       if (value.code === 'RECEIPT_NOT_FOUND') {
-        try { await performPending(pending); } catch (replayError) { setError(errorMessage(replayError)); }
+        try { await performPending(pending); }
+        catch (replayError) {
+          if (isUnknown(replayError)) setNotice(`办理结果待核对，已保留原请求号 ${pending.body.clientRequestId}。`);
+          else await refreshAfterRecoveryError(replayError, pending.body.clientRequestId);
+        }
       } else { setError(errorMessage(reason)); }
     } finally { endLoading(loadingOwner); }
   }

@@ -71,12 +71,31 @@ function validate(payload: Payload) {
 export function LifecycleEditor({ draft, options, open, busy, locked, pendingRequestId, optionsError, optionsLoading,
   issues, onClose, onCancel, onSave, onSubmit, onRetryOptions }: Props) {
   const [payload, setPayload] = useState<Payload>(() => clone(draft.payload));
+  const [basis, setBasis] = useState(() => ({ draftId: draft.id, revision: draft.revision, payload: clone(draft.payload) }));
+  const [revisionConflict, setRevisionConflict] = useState(false);
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+  const payloadKey = JSON.stringify(payload);
+  const draftPayloadKey = JSON.stringify(draft.payload);
+  const basisPayloadKey = JSON.stringify(basis.payload);
 
   useEffect(() => {
-    setPayload(clone(draft.payload));
-    setClientErrors({});
-  }, [draft.id]);
+    if (draft.id !== basis.draftId) {
+      setPayload(clone(draft.payload));
+      setBasis({ draftId: draft.id, revision: draft.revision, payload: clone(draft.payload) });
+      setRevisionConflict(false);
+      setClientErrors({});
+      return;
+    }
+    if (draft.revision === basis.revision) return;
+    if (payloadKey === basisPayloadKey || payloadKey === draftPayloadKey) {
+      setPayload(clone(draft.payload));
+      setBasis({ draftId: draft.id, revision: draft.revision, payload: clone(draft.payload) });
+      setRevisionConflict(false);
+      setClientErrors({});
+    } else {
+      setRevisionConflict(true);
+    }
+  }, [basis.draftId, basis.revision, basisPayloadKey, draft.id, draft.revision, draftPayloadKey, payloadKey]);
 
   const targetChanged = draft.targetDocument.applicationId !== draft.targetId
     || draft.targetDocument.version !== draft.targetVersion;
@@ -96,7 +115,13 @@ export function LifecycleEditor({ draft, options, open, busy, locked, pendingReq
   };
   const save = () => {
     const errors = validate(payload); setClientErrors(errors);
-    if (!Object.keys(errors).length && !targetChanged) onSave(payload);
+    if (!Object.keys(errors).length && !targetChanged && !revisionConflict) onSave(payload);
+  };
+  const adoptLatest = () => {
+    setPayload(clone(draft.payload));
+    setBasis({ draftId: draft.id, revision: draft.revision, payload: clone(draft.payload) });
+    setRevisionConflict(false);
+    setClientErrors({});
   };
 
   return <div className="lifecycle-editor-layer" hidden={!open} style={open ? undefined : { display: 'none' }}>
@@ -110,6 +135,10 @@ export function LifecycleEditor({ draft, options, open, busy, locked, pendingReq
       <div className="draft-drawer-body">
         {targetChanged && <div className="lifecycle-warning"><AlertCircle />
           <span><strong>原目标已变化，不能直接提交。</strong>当前页面保留了未保存输入。请先关闭编辑并刷新核对；如需继续，请放弃这份草稿后基于当前单据重新准备。</span></div>}
+        {revisionConflict && <div className="lifecycle-warning"><AlertCircle />
+          <span><strong>草稿已更新到 revision {draft.revision}。</strong>当前页面保留了未保存输入。请核对后使用最新草稿内容，再继续编辑。</span>
+          <button type="button" onClick={adoptLatest}>使用最新草稿内容</button>
+        </div>}
         {draft.requestId && <div className="lifecycle-warning"><AlertCircle />
           <span>办理结果待核对，已保留原请求号 {draft.requestId}。请先查询回执。</span></div>}
         {locked && !draft.requestId && <div className="lifecycle-warning"><AlertCircle />
@@ -179,8 +208,8 @@ export function LifecycleEditor({ draft, options, open, busy, locked, pendingReq
       <footer className="lifecycle-editor-footer">
         <button type="button" className="text-danger" onClick={onCancel} disabled={busy || locked || Boolean(draft.requestId)}>放弃本次编辑</button>
         <span>{unsaved ? '有未保存修改' : `草稿 revision ${draft.revision}`}</span>
-        <button type="button" onClick={save} disabled={busy || locked || targetChanged || Boolean(draft.requestId)}>保存并查看差异</button>
-        <button type="button" className="primary" onClick={onSubmit} disabled={busy || locked || targetChanged || unsaved || Boolean(draft.requestId)}>
+        <button type="button" onClick={save} disabled={busy || locked || targetChanged || revisionConflict || Boolean(draft.requestId)}>保存并查看差异</button>
+        <button type="button" className="primary" onClick={onSubmit} disabled={busy || locked || targetChanged || revisionConflict || unsaved || Boolean(draft.requestId)}>
           {draft.mode === 'change' ? '确认提交变更' : '确认重新提交'}
         </button>
       </footer>

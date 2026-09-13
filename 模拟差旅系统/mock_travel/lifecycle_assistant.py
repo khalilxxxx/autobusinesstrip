@@ -275,5 +275,7 @@ def register_assistant_lifecycle(app,router,db_path):
     def submit(cid:str,body:Submit): return assistant.submit(cid,body.model_dump())
     @router.post(prefix+'/action')
     def action(cid:str,body:Action): return assistant.action(cid,body.model_dump())
+    @router.post(prefix+'/recover')
+    def recover(cid:str): return assistant.recover(cid)
     @router.delete(prefix+'/draft')
     def cancel(cid:str): return assistant.cancel(cid)

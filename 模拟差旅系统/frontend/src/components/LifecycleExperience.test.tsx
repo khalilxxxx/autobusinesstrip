@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const api = vi.hoisted(() => ({
   lifecycle: vi.fn(), lifecycleQuery: vi.fn(), lifecycleDetail: vi.fn(), lifecycleOptions: vi.fn(),
   lifecyclePrepare: vi.fn(), lifecycleSave: vi.fn(), lifecycleSubmit: vi.fn(),
-  lifecycleAction: vi.fn(), lifecycleReceipt: vi.fn(), lifecycleCancelDraft: vi.fn(),
+  lifecycleAction: vi.fn(), lifecycleRecover: vi.fn(), lifecycleReceipt: vi.fn(), lifecycleCancelDraft: vi.fn(),
 }));
 
 vi.mock('../api', () => ({
@@ -75,6 +75,7 @@ beforeEach(() => {
   api.lifecycle.mockResolvedValue(state());
   api.lifecycleOptions.mockResolvedValue({ uuid: 'O', code: 'SUCCESS', message: {}, data: options });
   api.lifecycleDetail.mockImplementation(async (_cid: string, reference: string) => ({ ...state(), selectedDocument: document({ applicationId: reference }) }));
+  api.lifecycleRecover.mockResolvedValue(state());
   api.lifecycleCancelDraft.mockResolvedValue(state());
 });
 
@@ -296,5 +297,125 @@ describe('员工单据办理面板', () => {
 
     await waitFor(() => expect(api.lifecycleOptions).toHaveBeenCalledTimes(2));
     expect(await view.findByRole('option', { name: '研发部' })).not.toBeNull();
+  });
+
+  it('服务器以 HTTP 200 返回 UNKNOWN 时仍保留原请求和恢复入口', async () => {
+    const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
+    api.lifecycle.mockResolvedValue(initial);
+    api.lifecycleSubmit.mockImplementation(async (_cid, body) => ({ ...initial,
+      draft: { ...initial.draft!, requestId: body.clientRequestId },
+      lastReceipt: { clientRequestId: body.clientRequestId, status: 'UNKNOWN', result: { message: '待核对' } },
+    }));
+
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+
+    await waitFor(() => expect(api.lifecycleSubmit).toHaveBeenCalledTimes(1));
+    await view.findByText(/办理结果待核对，已保留原请求号/);
+    expect(localStorage.getItem('travelLifecyclePendingOperation')).not.toBeNull();
+    expect(view.queryByRole('button', { name: '查询办理结果' })).not.toBeNull();
+  });
+
+  it('同一草稿经自然语言更新 revision 后，无本地编辑的表单显示最新内容', async () => {
+    const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
+    api.lifecycle.mockResolvedValueOnce(initial);
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    await view.findByRole('button', { name: '继续编辑变更' });
+    api.lifecycle.mockResolvedValue({ ...initial, draft: { ...initial.draft!, revision: 2, fingerprint: 'fingerprint-2',
+      differences: [{ field: 'remark', before: '客户拜访', after: '自然语言新说明' }],
+      payload: { ...initial.draft!.payload, remark: '自然语言新说明' } } });
+    view.rerender(<DocumentPanel conversationId="CID" refreshToken={1} />);
+
+    await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
+    fireEvent.click(view.getByRole('button', { name: '继续编辑变更' }));
+    await view.findByText('客户拜访 → 自然语言新说明');
+    expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('自然语言新说明');
+  });
+
+  it('同一草稿 revision 更新时保留未保存输入并要求显式采用最新内容', async () => {
+    const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
+    api.lifecycle.mockResolvedValueOnce(initial);
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '本地未保存说明' } });
+    api.lifecycle.mockResolvedValue({ ...initial, draft: { ...initial.draft!, revision: 2, fingerprint: 'fingerprint-2',
+      differences: [{ field: 'remark', before: '客户拜访', after: '自然语言新说明' }],
+      payload: { ...initial.draft!.payload, remark: '自然语言新说明' } } });
+    view.rerender(<DocumentPanel conversationId="CID" refreshToken={1} />);
+
+    await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
+    expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('本地未保存说明');
+    expect(await view.findByText(/草稿已更新到 revision 2/)).not.toBeNull();
+    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(true);
+    expect(view.getByRole('button', { name: '确认提交变更' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(view.getByRole('button', { name: '使用最新草稿内容' }));
+    expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('自然语言新说明');
+    expect(view.queryByText(/草稿已更新到 revision 2/)).toBeNull();
+    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('失败回执恢复会先同步助手请求终态再清除本地 pending', async () => {
+    const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
+    api.lifecycle.mockResolvedValueOnce(initial);
+    api.lifecycleSubmit.mockRejectedValueOnce(new ApiError('断网', 0, 'NETWORK_ERROR'));
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    await view.findByRole('button', { name: '查询办理结果' });
+    const requestId = api.lifecycleSubmit.mock.calls[0][1].clientRequestId;
+    const failed = { ...initial, draft: initial.draft,
+      lastReceipt: { clientRequestId: requestId, status: 'FAILED' as const, result: { message: '单据已变化' } } };
+    api.lifecycleReceipt.mockResolvedValue({ data: failed.lastReceipt });
+    api.lifecycleRecover.mockRejectedValueOnce(new ApiError('单据已变化', 409, 'VERSION_CONFLICT'));
+    api.lifecycle.mockResolvedValue(failed);
+
+    fireEvent.click(view.getByRole('button', { name: '查询办理结果' }));
+
+    await waitFor(() => expect(api.lifecycleRecover).toHaveBeenCalledWith('CID'));
+    await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
+    expect(localStorage.getItem('travelLifecyclePendingOperation')).toBeNull();
+    expect(view.queryByRole('button', { name: '查询办理结果' })).toBeNull();
+    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('浏览器无记录时会从服务端 UNKNOWN 恢复原请求入口', async () => {
+    const target = document(); const requestId = 'server-request';
+    const unknown = { ...state([target]), selectedDocument: target, draft: { ...draft(target), requestId },
+      lastReceipt: { clientRequestId: requestId, status: 'UNKNOWN' as const, result: { message: '待核对' } } };
+    const succeeded = { ...state([target]), selectedDocument: target, draft: null,
+      lastReceipt: { clientRequestId: requestId, status: 'SUCCEEDED' as const, result: { message: '已完成' } } };
+    api.lifecycle.mockResolvedValue(unknown);
+    api.lifecycleRecover.mockResolvedValue(succeeded);
+
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    const recoverButton = await view.findByRole('button', { name: '查询办理结果' });
+    expect(JSON.parse(localStorage.getItem('travelLifecyclePendingOperation') || '{}').CID).toMatchObject({
+      conversationId: 'CID', kind: 'recover', body: { clientRequestId: requestId },
+    });
+    fireEvent.click(recoverButton);
+
+    await waitFor(() => expect(api.lifecycleRecover).toHaveBeenCalledWith('CID'));
+    expect(localStorage.getItem('travelLifecyclePendingOperation')).toBeNull();
+  });
+
+  it('助手返回其他请求的终态时不会清除当前原请求', async () => {
+    const target = document(); const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
+    api.lifecycle.mockResolvedValue(initial);
+    api.lifecycleSubmit.mockRejectedValueOnce(new ApiError('断网', 0, 'NETWORK_ERROR'));
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    const recoverButton = await view.findByRole('button', { name: '查询办理结果' });
+    const requestId = api.lifecycleSubmit.mock.calls[0][1].clientRequestId;
+    api.lifecycleReceipt.mockResolvedValue({ data: { clientRequestId: requestId, status: 'FAILED', result: { message: '失败' } } });
+    api.lifecycleRecover.mockResolvedValue({ ...initial, draft: initial.draft,
+      lastReceipt: { clientRequestId: 'another-request', status: 'SUCCEEDED', result: { message: '其他请求已完成' } } });
+
+    fireEvent.click(recoverButton);
+
+    await view.findByText(new RegExp(`尚未取得原请求 ${requestId} 的终态`));
+    expect(JSON.parse(localStorage.getItem('travelLifecyclePendingOperation') || '{}').CID.body.clientRequestId).toBe(requestId);
+    expect(view.queryByRole('button', { name: '查询办理结果' })).not.toBeNull();
   });
 });

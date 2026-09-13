@@ -42,6 +42,7 @@ describe('单据生命周期 API 契约', () => {
     await assistantApi.lifecycleAction('会话/A', {
       reference: 'APP/1', action: 'withdraw', expectedVersion: 4, clientRequestId: 'request-action',
     });
+    await assistantApi.lifecycleRecover('会话/A');
     await assistantApi.lifecycleCancelDraft('会话/A');
 
     expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
@@ -51,6 +52,7 @@ describe('单据生命周期 API 契约', () => {
       '/assistant/api/conversations/%E4%BC%9A%E8%AF%9D%2FA/lifecycle/draft',
       '/assistant/api/conversations/%E4%BC%9A%E8%AF%9D%2FA/lifecycle/submit',
       '/assistant/api/conversations/%E4%BC%9A%E8%AF%9D%2FA/lifecycle/action',
+      '/assistant/api/conversations/%E4%BC%9A%E8%AF%9D%2FA/lifecycle/recover',
       '/assistant/api/conversations/%E4%BC%9A%E8%AF%9D%2FA/lifecycle/draft',
     ]);
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ reference: 'APP/1' });
@@ -61,7 +63,8 @@ describe('单据生命周期 API 契约', () => {
     expect(JSON.parse(fetchMock.mock.calls[5][1].body)).toEqual({
       reference: 'APP/1', action: 'withdraw', expectedVersion: 4, clientRequestId: 'request-action',
     });
-    expect(fetchMock.mock.calls[6][1].method).toBe('DELETE');
+    expect(fetchMock.mock.calls[6][1]).toMatchObject({ method: 'POST', body: '{}' });
+    expect(fetchMock.mock.calls[7][1].method).toBe('DELETE');
   });
 
   it('回执、模拟审批与 seed 使用 mock 生命周期接口', async () => {
