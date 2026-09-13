@@ -28,11 +28,20 @@ function isUnknown(reason: unknown) {
   return value?.code === 'NETWORK_ERROR' || (value?.code === 'INVALID_RESPONSE' && !(value.status && value.status >= 400 && value.status < 500));
 }
 
-function readPending(conversationId: string): PendingOperation | null {
+function readPendingOperations(): Record<string, PendingOperation> {
   try {
-    const value = JSON.parse(localStorage.getItem(PENDING_KEY) || 'null') as PendingOperation | null;
-    return value?.conversationId === conversationId ? value : null;
-  } catch { return null; }
+    const value = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}') as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const legacy = value as Partial<PendingOperation>;
+    if (typeof legacy.conversationId === 'string' && legacy.body && legacy.kind) {
+      return { [legacy.conversationId]: legacy as PendingOperation };
+    }
+    return value as Record<string, PendingOperation>;
+  } catch { return {}; }
+}
+
+function readPending(conversationId: string): PendingOperation | null {
+  return readPendingOperations()[conversationId] || null;
 }
 
 function cityLabel(options: LifecycleOptions | null, cityId: string) {
@@ -47,12 +56,16 @@ function efficacy(doc: LifecycleDocument) {
   return '当前未生效';
 }
 
-export function DocumentPanel({ conversationId, refreshToken }: { conversationId: string | null; refreshToken: unknown }) {
+type DocumentPanelProps = { conversationId: string | null; refreshToken: unknown };
+
+function DocumentPanelSession({ conversationId, refreshToken }: DocumentPanelProps) {
   const [open, setOpen] = useState(false);
   const [queryOpen, setQueryOpen] = useState(false);
   const [state, setState] = useState<LifecycleState>(emptyState);
   const [selected, setSelected] = useState<LifecycleDocument | null>(null);
   const [options, setOptions] = useState<LifecycleOptions | null>(null);
+  const [optionsError, setOptionsError] = useState('');
+  const [optionsLoading, setOptionsLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [issues, setIssues] = useState<ApiIssue[]>([]);
@@ -61,6 +74,18 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
   const [pending, setPending] = useState<PendingOperation | null>(() => conversationId ? readPending(conversationId) : null);
   const [filters, setFilters] = useState<LifecycleQueryFilters>({ dateBasis: 'trip', temporal: 'future', effectiveOnly: false });
   const requestRef = useRef(0);
+  const loadingOwnerRef = useRef(0);
+  const optionsRequestRef = useRef(0);
+
+  const beginLoading = () => {
+    const owner = ++loadingOwnerRef.current;
+    setLoading(true);
+    return owner;
+  };
+
+  const endLoading = (owner: number) => {
+    if (owner === loadingOwnerRef.current) setLoading(false);
+  };
 
   const applyState = useCallback((next: LifecycleState) => {
     setState(next);
@@ -85,13 +110,28 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
     void refresh(conversationId);
   }, [conversationId, refreshToken, refresh]);
 
-  useEffect(() => {
-    assistantApi.lifecycleOptions().then((result) => setOptions(result.data)).catch(() => undefined);
+  const loadOptions = useCallback(async () => {
+    const request = ++optionsRequestRef.current;
+    setOptionsLoading(true); setOptionsError('');
+    try {
+      const result = await assistantApi.lifecycleOptions();
+      if (request === optionsRequestRef.current) setOptions(result.data);
+    } catch (reason) {
+      if (request === optionsRequestRef.current) setOptionsError(errorMessage(reason));
+    } finally {
+      if (request === optionsRequestRef.current) setOptionsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadOptions();
+    return () => { ++optionsRequestRef.current; };
+  }, [loadOptions]);
 
   const run = async (operation: () => Promise<LifecycleState>, preserveEditor = true) => {
     const request = ++requestRef.current;
-    setLoading(true); setError(''); setNotice(''); setIssues([]);
+    const loadingOwner = beginLoading();
+    setError(''); setNotice(''); setIssues([]);
     try {
       const result = await operation();
       if (request !== requestRef.current) return result;
@@ -106,7 +146,7 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
       if (conversationId && ['CONFIRMATION_STALE', 'ACTION_NOT_ALLOWED'].includes(value.code || '')) await refresh(conversationId);
       throw reason;
     } finally {
-      if (request === requestRef.current) setLoading(false);
+      endLoading(loadingOwner);
     }
   };
 
@@ -117,7 +157,7 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
   }
 
   async function prepare(doc: LifecycleDocument, mode: 'change' | 'resubmit') {
-    if (!conversationId) return;
+    if (!conversationId || pending) return;
     try { await run(() => assistantApi.lifecyclePrepare(conversationId, { reference: doc.applicationId, mode })); setEditing(true); }
     catch { /* shown above */ }
   }
@@ -130,10 +170,19 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
   }
 
   function remember(operation: PendingOperation) {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(operation)); setPending(operation);
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ ...readPendingOperations(), [operation.conversationId]: operation }));
+    setPending(operation);
   }
 
-  function forget() { localStorage.removeItem(PENDING_KEY); setPending(null); }
+  function forget() {
+    if (conversationId) {
+      const operations = readPendingOperations();
+      delete operations[conversationId];
+      if (Object.keys(operations).length) localStorage.setItem(PENDING_KEY, JSON.stringify(operations));
+      else localStorage.removeItem(PENDING_KEY);
+    }
+    setPending(null);
+  }
 
   async function performPending(operation: PendingOperation) {
     if (!conversationId) return;
@@ -145,7 +194,7 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
 
   async function recover() {
     if (!pending || !conversationId) return;
-    setLoading(true); setError(''); setNotice('');
+    const loadingOwner = beginLoading(); setError(''); setNotice('');
     try {
       const receipt = await assistantApi.lifecycleReceipt(pending.body.clientRequestId);
       if (receipt.data.status === 'FAILED') {
@@ -157,7 +206,7 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
       if (value.code === 'RECEIPT_NOT_FOUND') {
         try { await performPending(pending); } catch (replayError) { setError(errorMessage(replayError)); }
       } else { setError(errorMessage(reason)); }
-    } finally { setLoading(false); }
+    } finally { endLoading(loadingOwner); }
   }
 
   async function action(doc: LifecycleDocument, actionName: 'withdraw' | 'void') {
@@ -165,16 +214,16 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
     const operation: PendingOperation = { conversationId, kind: 'action', body: {
       reference: doc.applicationId, action: actionName, expectedVersion: doc.version, clientRequestId: crypto.randomUUID(),
     } };
-    remember(operation); setLoading(true); setError('');
+    remember(operation); const loadingOwner = beginLoading(); setError('');
     try { await performPending(operation); }
     catch (reason) {
       if (isUnknown(reason)) setNotice('结果待核对。原请求号已保留，继续办理时会先查询回执。');
       else { forget(); setError(errorMessage(reason)); await refresh(conversationId); }
-    } finally { setLoading(false); }
+    } finally { endLoading(loadingOwner); }
   }
 
   async function saveDraft(payload: TravelApplication['request']) {
-    if (!conversationId || !state.draft) return;
+    if (!conversationId || !state.draft || pending) return;
     try { await run(() => assistantApi.lifecycleSave(conversationId, { draftId: state.draft!.id, revision: state.draft!.revision, payload })); }
     catch { /* issues and fresh eligibility already loaded */ }
   }
@@ -184,12 +233,12 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
     const operation: PendingOperation = { conversationId, kind: 'submit', body: {
       draftId: state.draft.id, revision: state.draft.revision, fingerprint: state.draft.fingerprint, clientRequestId: crypto.randomUUID(),
     } };
-    remember(operation); setLoading(true); setError('');
+    remember(operation); const loadingOwner = beginLoading(); setError('');
     try { await performPending(operation); }
     catch (reason) {
       if (isUnknown(reason)) setNotice('结果待核对。编辑内容和原请求号已保留，请先查询回执。');
       else { forget(); setError(errorMessage(reason)); await refresh(conversationId); }
-    } finally { setLoading(false); }
+    } finally { endLoading(loadingOwner); }
   }
 
   const shownDocuments = useMemo(() => state.documents.filter((item) => !item.isSuperseded), [state.documents]);
@@ -254,9 +303,14 @@ export function DocumentPanel({ conversationId, refreshToken }: { conversationId
       </div>
       {draftTarget && !editing && <div className="document-draft-banner"><span>正在编辑 {draftTarget.applicationNo}，草稿尚未提交、尚未生效。</span><button type="button" onClick={() => setEditing(true)}>继续编辑</button></div>}
     </aside>}
-    {editing && state.draft && <LifecycleEditor draft={state.draft} options={options} busy={loading} issues={issues}
-      onClose={() => setEditing(false)} onCancel={() => conversationId && void run(() => assistantApi.lifecycleCancelDraft(conversationId), false)}
-      onSave={(payload) => void saveDraft(payload)} onSubmit={() => void submitDraft()} />}
+    {state.draft && <LifecycleEditor draft={state.draft} options={options} open={editing} busy={loading} locked={Boolean(pending)}
+      pendingRequestId={pending?.body.clientRequestId} optionsError={optionsError} optionsLoading={optionsLoading} issues={issues}
+      onClose={() => setEditing(false)} onCancel={() => conversationId && !pending && void run(() => assistantApi.lifecycleCancelDraft(conversationId), false)}
+      onSave={(payload) => void saveDraft(payload)} onSubmit={() => void submitDraft()} onRetryOptions={() => void loadOptions()} />}
     </>, document.body)}
   </>;
+}
+
+export function DocumentPanel(props: DocumentPanelProps) {
+  return <DocumentPanelSession key={props.conversationId || 'no-conversation'} {...props} />;
 }

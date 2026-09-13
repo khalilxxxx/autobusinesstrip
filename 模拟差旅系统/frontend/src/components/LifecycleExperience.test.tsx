@@ -64,6 +64,12 @@ function draft(target = document()): LifecycleDraft {
     original: structuredClone(target.request), differences: [], fingerprint: 'fingerprint-1' };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   vi.clearAllMocks(); localStorage.clear();
   api.lifecycle.mockResolvedValue(state());
@@ -181,7 +187,7 @@ describe('员工单据办理面板', () => {
     fireEvent.click(await first.findByRole('button', { name: '查询单据' }));
     fireEvent.click(await first.findByRole('button', { name: '撤回本次提交' }));
     expect(await first.findByText(/结果待核对/)).not.toBeNull();
-    const originalId = JSON.parse(localStorage.getItem('travelLifecyclePendingOperation') || '{}').body.clientRequestId;
+    const originalId = JSON.parse(localStorage.getItem('travelLifecyclePendingOperation') || '{}').CID.body.clientRequestId;
     first.unmount();
 
     const second = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
@@ -189,5 +195,106 @@ describe('员工单据办理面板', () => {
     await waitFor(() => expect(api.lifecycleAction).toHaveBeenCalledTimes(2));
     expect(api.lifecycleReceipt.mock.invocationCallOrder[0]).toBeLessThan(api.lifecycleAction.mock.invocationCallOrder[1]);
     expect(api.lifecycleAction.mock.calls[1][1].clientRequestId).toBe(originalId);
+  });
+
+  it('过期写请求会调用刷新但仍由原写操作可靠释放 loading', async () => {
+    const target = document();
+    const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
+    api.lifecycle.mockResolvedValue(initial);
+    api.lifecycleSave.mockRejectedValue(new ApiError('草稿已变化', 409, 'CONFIRMATION_STALE'));
+
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '保留这次修改' } });
+    fireEvent.click(view.getByRole('button', { name: '保存并查看差异' }));
+
+    await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(false));
+  });
+
+  it('切换到新会话时立即移除旧会话单据并等待新状态', async () => {
+    const old = document({ applicationId: 'APP-A', applicationNo: '会话-A-单据' });
+    const next = deferred<LifecycleState>();
+    api.lifecycle.mockImplementation((_id: string) => _id === 'A' ? Promise.resolve(state([old])) : next.promise);
+
+    const view = render(<DocumentPanel conversationId="A" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '查询单据' }));
+    expect(await view.findByText('会话-A-单据')).not.toBeNull();
+
+    view.rerender(<DocumentPanel conversationId="B" refreshToken={0} />);
+
+    expect(view.queryByText('会话-A-单据')).toBeNull();
+    expect(view.queryByRole('button', { name: '作废当前有效单据' })).toBeNull();
+  });
+
+  it('未知提交结果锁定编辑器中的保存、提交和放弃入口', async () => {
+    const target = document();
+    api.lifecycle.mockResolvedValue({ ...state([target]), selectedDocument: target, draft: draft(target) });
+    api.lifecycleSubmit.mockRejectedValue(new ApiError('断网', 0, 'NETWORK_ERROR'));
+
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    expect(await view.findByText(/结果待核对/)).not.toBeNull();
+
+    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(true);
+    expect(view.getByRole('button', { name: '确认提交变更' }).hasAttribute('disabled')).toBe(true);
+    expect(view.getByRole('button', { name: '放弃本次编辑' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('不同会话分别保留未知操作，后一会话不会覆盖前一会话请求号', async () => {
+    const actionable = document({ status: 'S002', version: 1, isEffective: false,
+      actions: { withdraw: { allowed: true, reason: null }, void: { allowed: false, reason: '不可作废' },
+        change: { allowed: false, reason: '不可变更' }, resubmit: { allowed: false, reason: '不可重提' } } });
+    api.lifecycle.mockResolvedValue({ ...state([actionable]), selectedDocument: actionable });
+    api.lifecycleAction.mockRejectedValue(new ApiError('断网', 0, 'NETWORK_ERROR'));
+
+    const first = render(<DocumentPanel conversationId="A" refreshToken={0} />);
+    fireEvent.click(await first.findByRole('button', { name: '查询单据' }));
+    fireEvent.click(await first.findByRole('button', { name: '撤回本次提交' }));
+    expect(await first.findByText(/结果待核对/)).not.toBeNull();
+    first.unmount();
+
+    const second = render(<DocumentPanel conversationId="B" refreshToken={0} />);
+    fireEvent.click(await second.findByRole('button', { name: '查询单据' }));
+    fireEvent.click(await second.findByRole('button', { name: '撤回本次提交' }));
+    expect(await second.findByText(/结果待核对/)).not.toBeNull();
+    second.unmount();
+
+    const restored = render(<DocumentPanel conversationId="A" refreshToken={0} />);
+    expect(await restored.findByRole('button', { name: '查询办理结果' })).not.toBeNull();
+  });
+
+  it('收起编辑器后查询同一草稿，继续编辑仍保留未保存输入', async () => {
+    const target = document();
+    const initial = { ...state([target]), selectedDocument: target, draft: draft(target) };
+    api.lifecycle.mockResolvedValue(initial);
+    api.lifecycleQuery.mockResolvedValue(initial);
+
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '收起后仍需保留' } });
+    fireEvent.click(view.getByRole('button', { name: '关闭生命周期编辑' }));
+    fireEvent.click(view.getByRole('button', { name: '查询单据' }));
+    fireEvent.click(await view.findByRole('button', { name: '开始查询' }));
+    await waitFor(() => expect(api.lifecycleQuery).toHaveBeenCalled());
+    fireEvent.click(view.getByRole('button', { name: '继续编辑变更' }));
+
+    expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('收起后仍需保留');
+  });
+
+  it('基础选项加载失败会在编辑器提示并允许原地重试', async () => {
+    const target = document();
+    api.lifecycle.mockResolvedValue({ ...state([target]), selectedDocument: target, draft: draft(target) });
+    api.lifecycleOptions.mockRejectedValueOnce(new ApiError('主数据暂时不可用', 503, 'OPTIONS_UNAVAILABLE'))
+      .mockResolvedValueOnce({ uuid: 'O', code: 'SUCCESS', message: {}, data: options });
+
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    expect(await view.findByText(/基础选项加载失败.*主数据暂时不可用/)).not.toBeNull();
+    fireEvent.click(view.getByRole('button', { name: '重试加载基础选项' }));
+
+    await waitFor(() => expect(api.lifecycleOptions).toHaveBeenCalledTimes(2));
+    expect(await view.findByRole('option', { name: '研发部' })).not.toBeNull();
   });
 });

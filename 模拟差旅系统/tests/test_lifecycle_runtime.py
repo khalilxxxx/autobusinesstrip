@@ -77,3 +77,37 @@ def test_server_and_gateway_commands_are_single_worker_and_use_lifecycle_paths(t
     assert env["MOCK_TRAVEL_DB"] == str(base / "data/lifecycle.sqlite3")
     assert env["MOCK_TRAVEL_DIFY_CONFIG"] == str(base / ".local/lifecycle-dify.json")
     assert env["MOCK_TRAVEL_BRIDGE_CONFIG"] == str(base / ".local/lifecycle-bridge.json")
+
+
+@pytest.mark.parametrize("occupied_port", [lifecycle_control.SERVER_PORT, lifecycle_control.GATEWAY_PORT])
+def test_start_checks_both_ports_before_starting_or_reusing_tunnel(tmp_path, monkeypatch, occupied_port):
+    base = tmp_path / "模拟差旅系统"
+    (base / ".venv/bin").mkdir(parents=True)
+    (base / ".venv/bin/python").write_text("", encoding="utf-8")
+    (base / "frontend/dist").mkdir(parents=True)
+    (base / "frontend/dist/index.html").write_text("", encoding="utf-8")
+    source = tmp_path / "source.yml"
+    source.write_text("app: {}", encoding="utf-8")
+    tunnel_calls = []
+
+    monkeypatch.setattr(lifecycle_control, "BASE", base)
+    monkeypatch.setattr(lifecycle_control, "LOCAL", base / ".local")
+    monkeypatch.setattr(lifecycle_control, "STATE", base / ".local/lifecycle-processes.json")
+    monkeypatch.setattr(lifecycle_control, "BRIDGE", base / ".local/lifecycle-bridge.json")
+    monkeypatch.setattr(lifecycle_control, "SOURCE_DSL", source)
+    monkeypatch.setattr(lifecycle_control, "load_runtime_config", lambda: ({}, {"public_url": ""}))
+    monkeypatch.setattr(lifecycle_control, "occupied", lambda port: port == occupied_port)
+    monkeypatch.setattr(lifecycle_control, "ensure_tunnel", lambda state, bridge: tunnel_calls.append(True) or bridge)
+
+    with pytest.raises(RuntimeError, match=str(occupied_port)):
+        lifecycle_control.start({})
+
+    assert tunnel_calls == []
+
+
+def test_port_preflight_accepts_ports_owned_by_matching_recorded_processes(monkeypatch):
+    state = {"server": {"pid": 1}, "gateway": {"pid": 2}}
+    monkeypatch.setattr(lifecycle_control, "running", lambda entry: entry in state.values())
+    monkeypatch.setattr(lifecycle_control, "occupied", lambda _port: True)
+
+    lifecycle_control.preflight_ports(state)

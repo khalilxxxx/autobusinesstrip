@@ -37,7 +37,7 @@ def create_gateway(*, token=None, transport=None, upstream_url=None):
             token = bridge["token"]
             upstream_url = upstream_url or bridge.get("upstream_url")
         except (OSError, ValueError, KeyError):
-            raise RuntimeError("请先准备 .local/bridge.json 中的网关凭证。") from None
+            raise RuntimeError(f"请先准备网关凭证配置：{BRIDGE_CONFIG}") from None
     if not isinstance(token, str) or not token or not token.isascii() or not token.isprintable():
         raise RuntimeError("网关凭证格式无效。")
     upstream_url = upstream_url or "http://127.0.0.1:8766"

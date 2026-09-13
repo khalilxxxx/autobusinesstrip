@@ -166,6 +166,12 @@ def occupied(port):
         return client.connect_ex(("127.0.0.1", port)) == 0
 
 
+def preflight_ports(state):
+    for name, port in (("server", SERVER_PORT), ("gateway", GATEWAY_PORT)):
+        if not running(state.get(name)) and occupied(port):
+            raise RuntimeError(f"端口 {port} 已被非本控制器进程占用；不会启动隧道或停止该进程，请先核对。")
+
+
 def spawn(name, command, state, *, port=None, env=None):
     if running(state.get(name)):
         return False
@@ -237,6 +243,7 @@ def start(state):
         raise RuntimeError("缺少本工作树 frontend/dist，请先构建前端。")
     if not SOURCE_DSL.is_file():
         raise RuntimeError("缺少生命周期 V2 DSL 源文件。")
+    preflight_ports(state)
     dify, bridge = load_runtime_config()
     bridge = ensure_tunnel(state, bridge)
     commands, env = runtime_commands(BASE, python), runtime_environment(BASE)

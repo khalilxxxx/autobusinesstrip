@@ -1,6 +1,8 @@
 import httpx
 from fastapi.testclient import TestClient
+import pytest
 
+from mock_travel import gateway
 from mock_travel.gateway import create_gateway
 
 
@@ -63,3 +65,12 @@ def test_gateway_does_not_follow_redirects():
         response = client.get("/mock/v1/employee-context", headers={"Authorization": "Bearer test-token"})
         assert response.status_code == 502
         assert len(calls) == 1
+
+
+def test_gateway_missing_custom_config_error_does_not_point_to_old_bridge_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(gateway, "BRIDGE_CONFIG", tmp_path / "lifecycle-bridge.json")
+
+    with pytest.raises(RuntimeError, match="lifecycle-bridge.json") as error:
+        gateway.create_gateway()
+
+    assert ".local/bridge.json" not in str(error.value)
