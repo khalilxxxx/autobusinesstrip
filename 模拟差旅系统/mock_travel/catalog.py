@@ -25,8 +25,8 @@ def employee_context():
     return {
         "employee": {"employeeId": "DEMO_EMP_001", "employeeName": "演示员工",
                      "baseCity": {"cityId": "330100", "cityName": "杭州"}},
-        "defaultDepartment": department, "departments": [department],
-        "defaultPayerCompany": company, "payerCompanies": [company],
+        "defaultDepartment": department, "departments": [department, {"id": "DEMO_DEPT_002", "name": "演示研发部"}],
+        "defaultPayerCompany": company, "payerCompanies": [company, {"id": "DEMO_COMPANY_002", "name": "演示服务公司"}],
         "businessTime": business_time(), "canSubmit": True,
         "modules": {"activity": "NONE", "companions": False}, "demoOnly": True,
     }

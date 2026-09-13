@@ -42,6 +42,8 @@ class Store:
                 );
                 CREATE INDEX IF NOT EXISTS applications_applicant ON applications(applicant_id);
             """)
+            from .lifecycle import initialize_schema
+            initialize_schema(conn)
             conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('scenario',?)", (encode({
                 "submissionResult": "SUCCESS", "failureMessage": "本次为模拟提单失败场景，请稍后重试。"}),))
 
@@ -104,6 +106,8 @@ class Store:
                         VALUES(?,?,?,?,?,?,?)""", (app_id, number, payload["applicantId"], now["datetime"],
                                                    serialized, fingerprint, confirmation))
                     application = conn.execute("SELECT * FROM applications WHERE id=?", (app_id,)).fetchone()
+                    from .lifecycle import initialize_document
+                    initialize_document(conn, application)
                 result["data"].update({"applicationId": application["id"], "applicationNo": application["application_no"],
                                        "createdAt": application["created_at"]})
             else:
@@ -122,20 +126,12 @@ class Store:
                 "createdAt": row["created_at"], "demoOnly": True, "request": json.loads(row["payload_json"])}
 
     def applications(self, applicant_id=None, limit=20, offset=0):
-        where = " WHERE applicant_id=?" if applicant_id else ""
-        params = (applicant_id,) if applicant_id else ()
-        with self.connection() as conn:
-            total = conn.execute("SELECT COUNT(*) FROM applications" + where, params).fetchone()[0]
-            rows = conn.execute("SELECT * FROM applications" + where + " ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?",
-                                params + (limit, offset)).fetchall()
-            return {"items": [self.application_data(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+        from .lifecycle import LifecycleService
+        return LifecycleService(self).list_documents({'limit': limit, 'offset': offset}, applicant_id or 'DEMO_EMP_001')
 
     def application(self, application_id):
-        with self.connection() as conn:
-            row = conn.execute("SELECT * FROM applications WHERE id=?", (application_id,)).fetchone()
-            if not row:
-                raise ServiceError("APPLICATION_NOT_FOUND", "未找到这张模拟申请。", 404)
-            return self.application_data(row)
+        from .lifecycle import LifecycleService
+        return LifecycleService(self).document(application_id)
 
     def submission(self, request_id):
         with self.connection() as conn:

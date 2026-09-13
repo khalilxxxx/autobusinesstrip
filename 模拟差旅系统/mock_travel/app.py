@@ -65,6 +65,8 @@ def create_app(db_path=None, *, dify_service=None):
                       {"name": "场景控制", "description": "只影响后续新请求，重传旧请求仍回放原结果"}],
     )
     app.state.store = store
+    from .lifecycle import LifecycleService
+    app.state.lifecycle = LifecycleService(store)
     register_assistant(app, store.path, dify_service=dify_service)
     app.mount("/assets/swagger", StaticFiles(directory=str(BASE / "mock_travel" / "static" / "swagger")), name="swagger-assets")
     frontend = BASE / "frontend" / "dist"
@@ -199,6 +201,8 @@ def create_app(db_path=None, *, dify_service=None):
     def submission(request_id: str):
         return envelope(store.submission(request_id))
 
+    from .lifecycle_api import register_lifecycle
+    register_lifecycle(app, envelope)
     register_workflow(app, envelope)
 
     # FastAPI 生成 OpenAPI 时递归排除 None；恢复业务示例中必须保留的 JSON null。
