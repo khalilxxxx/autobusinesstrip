@@ -44,7 +44,9 @@
 
 ## 任务 4：提交与推送
 
-- [ ] 提交本轮文档和配置模板，保持本地原 `main` 不变。
-- [ ] 配置用户指定 remote，推送当前 HEAD 为远端 `main`，并保留原版基线标签。
-- [ ] 通过 GitHub API 与远端引用核对提交、README、需求说明、部署指南和 DSL。
-- [ ] 向用户提供仓库链接和完成情况。
+- [x] 提交本轮文档和配置模板，保持本地原 `main` 不变。
+- [x] 配置用户指定 remote，推送当前 HEAD 为远端 `main`，并保留原版基线标签。
+- [x] 通过 GitHub API 与远端引用核对提交、README、需求说明、部署指南和 DSL。
+- [x] 将交付入口和完成情况整理到仓库首页与发布验证文档。
+
+交付仓库：[khalilxxxx/autobusinesstrip](https://github.com/khalilxxxx/autobusinesstrip)。默认分支为 `main`；关键交付物已与 GitHub 文件对象摘要核对一致，原版基线标签也已推送。
