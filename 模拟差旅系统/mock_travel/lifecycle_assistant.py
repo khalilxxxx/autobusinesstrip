@@ -138,7 +138,8 @@ class LifecycleAssistant:
             turn=conn.execute("SELECT id FROM assistant_turns WHERE conversation_id=? AND status='running'",(cid,)).fetchone()
         turn_id=turn['id'] if turn else None
         groups=state.setdefault('cardGroups',[])
-        groups[:]=[g for g in groups if g['turnId']!=turn_id]
+        # UI 临时卡片由下一次卡片回复接替，避免操作完成后仍提示待办理。
+        groups[:]=[g for g in groups if g['turnId'] is not None and g['turnId']!=turn_id]
         groups.append(dict(id=uuid4().hex,turnId=turn_id,title=title,references=references,filters=filters or {},total=total))
 
     def propose_action(self,cid,body):
@@ -157,7 +158,10 @@ class LifecycleAssistant:
 
     def cancel_action(self,cid):
         with self.lock:
-            state=self._read(cid); state['pendingAction']=None
+            state=self._read(cid)
+            if state.get('pendingAction'):
+                state['cardGroups']=[g for g in state.get('cardGroups',[]) if g['turnId'] is not None]
+            state['pendingAction']=None
             self._write(cid,state); return self.view(cid)
 
     def query(self,cid,filters):

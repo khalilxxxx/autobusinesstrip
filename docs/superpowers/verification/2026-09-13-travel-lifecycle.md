@@ -2,7 +2,9 @@
 
 日期：2026-09-13。此文件随实际执行更新；需求中的验收场景不是测试通过的证据。
 
-交付结论：生命周期扩展已完成，最终功能代码为 `4f0ecec3a0aad75c2e11491d3bba00e9b375b825`。最终全分支审查发现的两项 Important 已修复，限定复查逐项确认 ADDRESSED，未发现修复引入的新 Critical/Important；没有遗留问题或需裁决的延期项。新版保留在 `feature/travel-lifecycle` 及其独立工作树运行，原目录 `main` 和旧 Dify 工作流保持原版。
+用户后续追加的纯语义查询与单据卡片交互已实现，最新结果见 [语义查询与单据卡片交互验收](2026-09-13-semantic-document-cards.md)。下文保留首轮生命周期实现的验证记录，不以旧版测试结果代替新增功能验收。
+
+首轮交付结论：生命周期扩展已完成，该轮功能代码为 `4f0ecec3a0aad75c2e11491d3bba00e9b375b825`。最终全分支审查发现的两项 Important 已修复，限定复查逐项确认 ADDRESSED，未发现修复引入的新 Critical/Important；没有遗留问题或需裁决的延期项。新版保留在 `feature/travel-lifecycle` 及其独立工作树运行，原目录 `main` 和旧 Dify 工作流保持原版。
 
 - 新助手：<http://127.0.0.1:8876/assistant>；新模拟控制台：<http://127.0.0.1:8876/simulator>。
 - 新 Dify：<https://udify.app/chat/R8lohnltNjSNQ4hI>，已发布 #2（51 节点、87 连线）。

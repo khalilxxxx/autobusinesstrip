@@ -132,3 +132,28 @@ def test_edit_followups_show_the_target_card_below_the_current_reply(env,query,c
     else:
         assert view['draft']['revision']==expected_revision
         if expected_revision==2: assert view['draft']['payload']['remark']=='客户研讨'
+
+
+def test_semantic_receipt_replaces_the_temporary_card_from_ui_proposal(env):
+    app,c,cid,url=env; service=app.state.lifecycle; store=app.state.assistant_manager.store
+    doc=complete(service,create(service))
+    c.post(url+'/propose-action',json=dict(reference=doc['applicationId'],action='void'))
+    tid,_=store.start_turn(cid,'确认作废','confirm-ui-proposal')
+    result=turn(env,'确认作废',dict(intent='HELP'))
+    store.finish(tid,result['reply'],'succeeded',state={})
+    groups=c.get(url).json()['cardGroups']
+    assert len(groups)==1
+    assert groups[0]['turnId']==tid and groups[0]['documents'][0]['status']=='S100'
+
+
+def test_cancelling_ui_proposal_removes_its_temporary_card_and_preserves_query_cards(env):
+    app,c,cid,url=env; service=app.state.lifecycle; store=app.state.assistant_manager.store
+    doc=create(service)
+    tid,_=store.start_turn(cid,'查这张单据','query-before-cancel')
+    result=turn(env,'查这张单据',dict(intent='DETAIL',reference=doc['applicationId']))
+    store.finish(tid,result['reply'],'succeeded',state={})
+    c.post(url+'/propose-action',json=dict(reference=doc['applicationId'],action='withdraw'))
+    assert len(c.get(url).json()['cardGroups'])==2
+    view=c.delete(url+'/propose-action').json()
+    assert [g['turnId'] for g in view['cardGroups']]==[tid]
+    assert view['pendingAction'] is None and service.document(doc['applicationId'])['status']=='S002'
