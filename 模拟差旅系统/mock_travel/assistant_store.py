@@ -252,7 +252,7 @@ class AssistantStore(Store):
                             VALUES(?,?,?,'assistant',?,?,?,?)""", (uuid4().hex, row["conversation_id"], turn_id, shown, status, now, snapshot))
             if state is not None:
                 conn.execute("UPDATE assistant_conversations SET state_json=?,synchronized=1,push_pending=?,updated_at=? WHERE id=?",
-                             (encode(state), int(push_pending), now, row["conversation_id"]))
+                             (conversation["state_json"] if state == old else encode(state), int(push_pending), now, row["conversation_id"]))
             else:
                 conn.execute("UPDATE assistant_conversations SET synchronized=CASE WHEN push_pending=1 THEN 1 ELSE 0 END,updated_at=? WHERE id=?", (now, row["conversation_id"]))
 

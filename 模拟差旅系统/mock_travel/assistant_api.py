@@ -224,4 +224,8 @@ def register_assistant(app, db_path, *, dify_service=None):
             manager.launch_form(app, turn_id, gate)
         return {"turnId": turn_id, "status": store.turn(turn_id)["status"]}
 
+    from .lifecycle_assistant import register_assistant_lifecycle
+    register_assistant_lifecycle(app, router, db_path)
+    from .lifecycle_workflow import register_lifecycle_workflow
+    register_lifecycle_workflow(app)
     app.include_router(router)

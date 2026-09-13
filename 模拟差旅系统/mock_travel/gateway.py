@@ -1,5 +1,6 @@
 """只向 Dify 开放固定接口的本地网关；运行于 127.0.0.1:8767。"""
 import json
+import logging
 from pathlib import Path
 import re
 import secrets
@@ -10,7 +11,11 @@ from fastapi.responses import JSONResponse, Response
 
 
 BRIDGE_CONFIG = Path(__file__).resolve().parents[1] / ".local" / "bridge.json"
+logger = logging.getLogger(__name__)
+
 ALLOWED = {
+    ("GET", "/workflow/v1/lifecycle/context"),
+    ("POST", "/workflow/v1/lifecycle/turn"),
     ("GET", "/workflow/v1/context"),
     ("POST", "/workflow/v1/cities/resolve"),
     ("GET", "/mock/v1/employee-context"),
@@ -59,6 +64,7 @@ def create_gateway(*, token=None, transport=None, upstream_url="http://127.0.0.1
             return error(502, "MOCK_UNREACHABLE", "本地模拟服务暂时不可用；提交结果不明确时请按原请求号查询。")
         if 300 <= response.status_code < 400:
             return error(502, "UPSTREAM_REDIRECT", "模拟接口返回了未允许的跳转。")
+        logger.info("工作流网关 %s %s 状态=%s", request.method, route, response.status_code)
         return Response(response.content, status_code=response.status_code,
                         headers={"Content-Type": response.headers.get("content-type", "application/json")})
 
