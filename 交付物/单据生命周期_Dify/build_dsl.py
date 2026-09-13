@@ -13,6 +13,7 @@ OUT=ROOT/'差旅助手-单据生命周期-V2-可导入.yml'
 def build():
     original=BASE.read_bytes(); doc=copy.deepcopy(yaml.safe_load(original))
     graph=doc['workflow']['graph']; nodes={n['data']['title'].split('-')[0]:n for n in graph['nodes']}
+    original_names=list(nodes)
     def token(name,field): return '{{#'+nodes[name]['id']+'.'+field+'#}}'
     def selector(name,field): return [nodes[name]['id'],field]
     def add(name,typ,title):
@@ -61,11 +62,19 @@ def build():
     add('LC_ANSWER','answer','回复生命周期结果')['answer']=token('LC_UNPACK','reply')
     add('LC_INVALID','answer','回复解析澄清')['answer']=token('LC_PACK','reply')
     add('LC_ERROR','answer','可恢复异常回复')['answer']='本轮未能取得可靠结果，原草稿和请求号仍保留。请重新打开草稿核对；若已发送办理请求，继续同一草稿确认时会先查询原请求号回执，勿重新新建重复单据。'
+    code('LC_CREATE','明确新申请确认口令归一化','creation_query.py',[('query',['sys','query'],'string'),('cv_session',['conversation','cv_session'],'string')],['query'])
+    def creation_input(value):
+        if value==['sys','query']: return selector('LC_CREATE','query')
+        if isinstance(value,str): return value.replace('{{#sys.query#}}',token('LC_CREATE','query'))
+        if isinstance(value,list): return [creation_input(item) for item in value]
+        if isinstance(value,dict): return {key:creation_input(item) for key,item in value.items()}
+        return value
+    for name in original_names: nodes[name]['data']=creation_input(nodes[name]['data'])
     graph['edges']=[e for e in graph['edges'] if not(e['source']==nodes['N01']['id'] and e['target']==nodes['H01']['id'])]
     for a,b,h in [('N01','LC_STATE','source'),('LC_STATE','LC_CONTEXT','source'),('LC_CONTEXT','LC_ROUTER','source'),('LC_ROUTER','LC_PACK','source'),('LC_PACK','LC_VALID','source'),
         ('LC_VALID','LC_TURN','true'),('LC_VALID','LC_INVALID','false'),('LC_TURN','LC_UNPACK','source'),('LC_UNPACK','LC_BRANCH','source'),
-        ('LC_BRANCH','LC_ANSWER','true'),('LC_BRANCH','H01','false')]: edge(a,b,h)
-    for name in ['LC_STATE','LC_CONTEXT','LC_ROUTER','LC_PACK','LC_TURN','LC_UNPACK']: edge(name,'LC_ERROR','fail-branch')
+        ('LC_BRANCH','LC_ANSWER','true'),('LC_BRANCH','LC_CREATE','false'),('LC_CREATE','H01','source')]: edge(a,b,h)
+    for name in ['LC_STATE','LC_CONTEXT','LC_ROUTER','LC_PACK','LC_TURN','LC_UNPACK','LC_CREATE']: edge(name,'LC_ERROR','fail-branch')
     graph['nodes']=list(nodes.values())
     doc['app'].update(name='差旅助手-单据生命周期-V2',description='独立 V2：保留创建会话，查询与单据生命周期编辑、确认、真实业务回执。')
     for variable in doc['workflow']['environment_variables']: variable['value']=''

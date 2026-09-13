@@ -65,6 +65,16 @@ def test_prepare_does_not_overwrite_and_query_does_not_change_draft(env):
     assert c.post(url+'/prepare',json=dict(reference=b['applicationId'],mode='change')).status_code==409
     assert c.post(url+'/query',json={}).json()['draft']==d
 
+
+def test_draft_exposes_its_target_document_independent_of_selection(env):
+    app,c,cid,url=env; a,d=prepared(env); b=complete(app.state.lifecycle,create(app.state.lifecycle))
+    assert c.post(url+'/prepare',json=dict(reference=b['applicationId'],mode='change')).status_code==409
+    assert app.state.lifecycle_assistant.detail(cid,b['applicationId'])['selectedDocument']['applicationId']==b['applicationId']
+    view=c.get(url).json()
+    assert view['selectedDocument']['applicationId']==b['applicationId']
+    assert view['draft']['targetId']==a['applicationId']
+    assert view['draft']['targetDocument']['applicationId']==a['applicationId']
+
 def test_employee_cannot_approve_or_withdraw_s003(env):
     app,c,cid,url=env; a=approval(app.state.lifecycle,create(app.state.lifecycle),'start')
     for action in ['complete','return','withdraw']:

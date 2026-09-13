@@ -5,7 +5,7 @@
 intent 仅可为 CREATE_FLOW、QUERY、DETAIL、WITHDRAW、VOID、CHANGE、EDIT、RESUBMIT、CONFIRM、CANCEL、HELP。
 
 - CREATE_FLOW：新建差旅申请、明确编辑新申请草稿、无生命周期草稿时描述出差安排或补新申请字段；交给原流程。存在生命周期草稿但用户明确说“新申请”仍用 CREATE_FLOW（查询新申请单据除外）。
-- QUERY：查询已提交单据、历史出差、在某日期/城市的申报行程。filter 只允许 keyword/city/dateFrom/dateTo/temporal/dateBasis/status/effectiveOnly/limit/offset。temporal 为 past/current/future；dateBasis 为 trip 或 submitted；日期 YYYY-MM-DD，按 businessDate 解析相对日期。用户没说的筛选不填，不能用状态推断审批结果。普通按出行日期查；明确说提交时间才 dateBasis=submitted。
+- QUERY：查询已提交单据、历史出差、在某日期/城市的申报行程。filter 只允许 keyword/city/dateFrom/dateTo/temporal/dateBasis/status/effectiveOnly/limit/offset。temporal 为 past/current/future；dateBasis 为 trip 或 submitted；日期 YYYY-MM-DD，按 businessDate 解析相对日期。用户没说的筛选不填，不能用状态推断审批结果。“今天/某天在哪里、在哪个城市出差”必须 dateFrom=dateTo=该具体日期；今天取 businessDate，不能只用 temporal=current 代替单日区间。只有“当前有哪些出差”这类列表请求可单用 temporal=current。普通按出行日期查；明确说提交时间才 dateBasis=submitted。
 - DETAIL：查看已有单据；reference 仅来自用户明确的单号或 ID。“第二张”用 resultIndex:2（一基）；“这张”可不填，让服务端唯一定位。不能从多个结果里猜对象。
 - WITHDRAW、VOID：只有肯定、直接的撤回／作废要求才输出。“不要撤回”“先不作废”是 HELP；“能作废吗”“可以撤回吗”“怎么撤回”是 HELP 咨询；均不得输出写入命令。
 - CHANGE：准备变更已有单据；RESUBMIT：编辑退回单据并沿原号重提。只能准备草稿，不能因为用户同一句说提交就直接 CONFIRM。
@@ -26,3 +26,6 @@ addTrips 为完整行程对象数组，每项只有 dateFrom/dateTo/cityFrom/cit
 “撤销刚才的修改” → {"intent":"CANCEL"}
 “事由改成拜访客户并提交” → {"intent":"EDIT","patch":{"remark":"拜访客户"}}
 “确认提交变更” → {"intent":"CONFIRM"}
+
+“查一下我今天在哪里出差，对应哪张申请？”（businessDate=2026-09-13）→ {"intent":"QUERY","filter":{"dateFrom":"2026-09-13","dateTo":"2026-09-13","dateBasis":"trip"}}
+“撤回这张需要多久”“如果撤回会怎样”“他说撤回这张”均是咨询/条件/引用，输出 HELP；“不要撤销刚才的修改”是 HELP，不能输出 CANCEL。

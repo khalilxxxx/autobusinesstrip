@@ -1,10 +1,10 @@
 {
   "source": "完整Demo_Dify接入/差旅申请助手-完整Demo-可导入.yml",
   "sourceSha256": "59018570752dfd9aa0db18168784348fe5cde3030dda643a2a443bb7c17e62ba",
-  "artifactSha256": "bb045ed3cbe96bc050ba7edd1d98b320bcf5fb67124046ccb0f4be421c9eb74b",
+  "artifactSha256": "9f95894de536bae99602f5cba02f36ba654fc606c90bc61f2a8d8a7a9943128b",
   "appName": "差旅助手-单据生命周期-V2",
-  "nodes": 50,
-  "edges": 85,
+  "nodes": 51,
+  "edges": 87,
   "nodeIds": {
     "N02": "1800000000000",
     "N04": "1800000000001",
@@ -55,7 +55,8 @@
     "LC_BRANCH": "2000000000046",
     "LC_ANSWER": "2000000000047",
     "LC_INVALID": "2000000000048",
-    "LC_ERROR": "2000000000049"
+    "LC_ERROR": "2000000000049",
+    "LC_CREATE": "2000000000050"
   },
   "note": "仅本地构建；线上导入发布及验证由主任务执行。"
 }

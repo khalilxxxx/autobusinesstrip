@@ -41,7 +41,8 @@ class DSLTests(unittest.TestCase):
         handled=next(e['target'] for e in edges if e['source']==names['LC_BRANCH'] and e['sourceHandle']=='true')
         fallback=next(e['target'] for e in edges if e['source']==names['LC_BRANCH'] and e['sourceHandle']=='false')
         self.assertNotIn(names['N13'],descendants(handled)); self.assertNotIn(names['H01'],descendants(handled))
-        self.assertEqual(fallback,names['H01'])
+        self.assertEqual(fallback,names['LC_CREATE'])
+        self.assertIn(names['H01'],descendants(fallback))
         for n in nodes.values():
             data=n['data']
             if data['type']=='code':

@@ -1028,15 +1028,27 @@ workflow:
         targetType: answer
         isInIteration: false
         isInLoop: false
-    - id: 2000000000046-false-1900000000027
+    - id: 2000000000046-false-2000000000050
       source: '2000000000046'
-      target: '1900000000027'
+      target: '2000000000050'
       sourceHandle: 'false'
       targetHandle: target
       type: custom
       zIndex: 0
       data:
         sourceType: if-else
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+    - id: 2000000000050-source-1900000000027
+      source: '2000000000050'
+      target: '1900000000027'
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: code
         targetType: http-request
         isInIteration: false
         isInLoop: false
@@ -1112,6 +1124,18 @@ workflow:
         targetType: answer
         isInIteration: false
         isInLoop: false
+    - id: 2000000000050-fail-branch-2000000000049
+      source: '2000000000050'
+      target: '2000000000049'
+      sourceHandle: fail-branch
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: code
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
     nodes:
     - data:
         code: "# BEGIN CURRENT BATCH INPUT RULES\n\"\"\"确定性的恢复范围和未确认节假日规则，内联到 Dify 节点。\"\"\"\nimport re\n\n\ndef explicit_route_restatement(query):\n    if any(mark in query for mark in ('“', '”', '「', '」', '『', '』', '\"', \"'\", '`')):\n        return False\n    if re.search(r'如果|假如|假设|要是|是否|请问|能否|可以吗|[？?]', query):\n        return False\n    scope = re.search(r'(?:这张|这次|本张|本次|当前|这份).{0,8}只(?:保留|从|去)', query)\n    dates = re.findall(r'\\d{4}-\\d{2}-\\d{2}|\\d{1,2}月\\d{1,2}[日号]', query)\n    return bool(scope and len(dates) >= 2 and re.search(r'去|到', query) and re.search(r'回|返', query))\n\n\ndef recovery_fact_context(recovery, query, draft):\n    if not recovery:\n        return {}\n    view = {k: recovery.get(k, '') for k in ('id', 'targets', 'scope', 'question')}\n    if (explicit_route_restatement(query) and recovery.get('failure_count') == 1\n            and recovery.get('base_draft_id') == draft.get('draft_id', '')\n            and recovery.get('base_revision') == draft.get('revision', 0)):\n        view.update(failed_query=recovery['failed_query'], reference_date=recovery['reference_date'])\n    return view\n\n\ndef holiday_needs_date(query):\n    holiday = re.search(r'(?:国庆|春节|中秋|端午|劳动节|五一|清明|元旦)(?:假期|节)?(?:结束|过)?后|节后', query)\n    explicit = re.search(r'\\d{4}-\\d{2}-\\d{2}|\\d{1,2}月\\d{1,2}[日号]|\\d{1,2}/\\d{1,2}', query)\n    return bool(holiday and not explicit)\n\n\ndef return_day_offset(query):\n    # 捕获完整数字，避免“十二”或“102”从尾部匹配成“二”或“02”。\n    match = re.search(r'([零〇一二两三四五六七八九十百千万\\d]+)天后(?:再)?(?:回|返)', query)\n    if not match:\n        return None\n    word = match[1]\n    digits = {'一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9}\n    if word.isdigit():\n        days = int(word)\n    elif word in digits:\n        days = digits[word]\n    elif re.fullmatch(r'[一二三四五六七八九]?十[一二三四五六七八九]?', word):\n        tens, units = word.split('十')\n        days = digits.get(tens, 1) * 10 + digits.get(units, 0)\n    else:\n        return None\n    return days if 1 <= days <= 30 else None\n# END CURRENT BATCH INPUT RULES\nimport json\nimport hashlib\nfrom datetime import datetime, timedelta, timezone\n\n\n# BEGIN GENERATED STATE CONTRACT\ndef empty_dialogue():\n    return {\"focus\": {\"draft_id\": \"\", \"revision\": 0, \"questions\": []}, \"recovery\": {}}\n\n\ndef validate_dialogue(dialogue):\n    if not isinstance(dialogue, dict) or set(dialogue) != {\"focus\", \"recovery\"}:\n        raise ValueError(\"对话状态结构错误，不能自动清空。\")\n    focus, recovery = dialogue[\"focus\"], dialogue[\"recovery\"]\n    if not isinstance(focus, dict) or set(focus) != {\"draft_id\", \"revision\", \"questions\"}:\n        raise ValueError(\"当前追问目标结构错误。\")\n    if not isinstance(focus[\"draft_id\"], str) or type(focus[\"revision\"]) is not int or focus[\"revision\"] < 0:\n        raise ValueError(\"追问关联的草稿版本错误。\")\n    if not isinstance(focus[\"questions\"], list) or len(focus[\"questions\"]) > 2:\n        raise ValueError(\"当前问题应为最多两项的列表。\")\n    for question in focus[\"questions\"]:\n        if not isinstance(question, dict) or set(question) != {\"id\", \"target\", \"field\", \"question\"} or not all(isinstance(v, str) for v in question.values()):\n            raise ValueError(\"当前问题的目标字段错误。\")\n    if not isinstance(recovery, dict):\n        raise ValueError(\"恢复事项结构错误。\")\n    if not recovery:\n        return\n    text_keys = (\"id\", \"failed_query\", \"reference_date\", \"error_code\", \"error_path\", \"base_draft_id\", \"question\", \"scope\")\n    if not all(isinstance(recovery.get(k), str) for k in text_keys):\n        raise ValueError(\"恢复事项文本字段错误。\")\n    if not recovery[\"id\"].startswith(\"Q-RECOVERY-\") or recovery[\"scope\"] not in {\"TURN\", \"TARGET\"}:\n        raise ValueError(\"恢复事项标识错误。\")\n    if not recovery[\"question\"].strip() or len(recovery[\"failed_query\"]) > 4000:\n        raise ValueError(\"恢复事项内容为空或过长。\")\n    if type(recovery.get(\"base_revision\")) is not int or recovery[\"base_revision\"] < 0:\n        raise ValueError(\"恢复事项草稿版本错误。\")\n    if type(recovery.get(\"failure_count\")) is not int or recovery[\"failure_count\"] < 1:\n        raise ValueError(\"恢复次数错误。\")\n    if not isinstance(recovery.get(\"targets\"), list) or len(recovery[\"targets\"]) > 20:\n        raise ValueError(\"恢复目标列表错误。\")\n    for target in recovery[\"targets\"]:\n        if not isinstance(target, dict) or set(target) != {\"trip_id\", \"field\"} or not all(isinstance(v, str) and v for v in target.values()):\n            raise ValueError(\"恢复目标结构错误。\")\n    if recovery[\"scope\"] == \"TARGET\" and not recovery[\"targets\"]:\n        raise ValueError(\"按目标恢复缺少目标。\")\n    if not isinstance(recovery.get(\"recent_errors\"), list) or not 1 <= len(recovery[\"recent_errors\"]) <= 3:\n        raise ValueError(\"恢复诊断数量错误。\")\n    for error in recovery[\"recent_errors\"]:\n        if not isinstance(error, dict) or not all(isinstance(error.get(k), str) for k in (\"error_code\", \"error_path\")):\n            raise ValueError(\"恢复诊断结构错误。\")\n# END GENERATED STATE CONTRACT\n\n\ndef main(query: str, cv_session: str, api_body: str,\n         demo_reference_date: str, run_id: str) -> dict:\n    def encode(value):\n        return json.dumps(value, ensure_ascii=False, separators=(\",\", \":\"))\n\n    case = \"NORMAL\"\n    payload = json.loads(api_body)\n    if payload.get(\"code\") != \"SUCCESS\" or not isinstance(payload.get(\"data\"), dict):\n        raise ValueError(\"员工与交通接口调用失败；已有会话未改变。\")\n    api = payload[\"data\"]\n    employee_api = api[\"employeeContext\"]\n    emp = employee_api[\"employee\"]\n    department = employee_api[\"defaultDepartment\"]\n    company = employee_api[\"defaultPayerCompany\"]\n    query = str(query or \"\").strip()\n    if not query or len(query) > 4000:\n        raise ValueError(\"输入须为 1～4000 个字符。\")\n    now = datetime.now(timezone(timedelta(hours=8)))\n    ref = str(demo_reference_date or \"\").strip()\n    if ref:\n        reference = datetime.strptime(ref, \"%Y-%m-%d\").date()\n        if reference.isoformat() != ref:\n            raise ValueError(\"测试日期必须严格使用 YYYY-MM-DD。\")\n        clock_source = \"TEST_OVERRIDE\"\n    else:\n        reference = datetime.strptime(employee_api[\"businessTime\"][\"date\"], \"%Y-%m-%d\").date()\n        clock_source = \"SYSTEM_CLOCK\"\n\n    raw = json.loads(cv_session or \"{}\")\n    if not isinstance(raw, dict):\n        raise ValueError(\"会话状态应为 JSON 对象。\")\n    if not raw:\n        state = {\"schema_version\": \"mvp1.2\", \"demo_case\": case, \"demo_anchor_date\": reference.isoformat(),\n                 \"flow_state\": \"IDLE\", \"draft\": {}, \"pending\": [],\n                 \"last_question\": \"\", \"confirmation\": {},\n                 \"last_submission\": {}, \"history\": [], \"dialogue\": empty_dialogue()}\n    else:\n        expected = {\"schema_version\", \"demo_case\", \"demo_anchor_date\", \"flow_state\", \"draft\", \"pending\",\n                    \"last_question\", \"confirmation\", \"last_submission\", \"history\"}\n        legacy = raw.get(\"schema_version\") == \"mvp1.0\"\n        if (legacy and set(raw) != expected) or (not legacy and (set(raw) != expected | {\"dialogue\"} or raw.get(\"schema_version\") != \"mvp1.2\")):\n            raise ValueError(\"会话状态结构或版本不一致；不能自动清空。\")\n        if raw[\"demo_case\"] != case:\n            raise ValueError(\"同一会话不能切换演示身份；请新建会话选择场景。\")\n        if raw[\"flow_state\"] not in {\"IDLE\", \"COLLECTING\", \"READY_TO_CONFIRM\", \"SUBMITTED\"}:\n            raise ValueError(\"会话状态非法。\")\n        for key in (\"draft\", \"confirmation\", \"last_submission\"):\n            if not isinstance(raw[key], dict):\n                raise ValueError(\"会话对象损坏：\" + key)\n        for key in (\"pending\", \"history\"):\n            if not isinstance(raw[key], list):\n                raise ValueError(\"会话列表损坏：\" + key)\n        if not isinstance(raw[\"last_question\"], str):\n            raise ValueError(\"上一轮问题类型不正确。\")\n        state = raw\n        if legacy:\n            state[\"schema_version\"] = \"mvp1.2\"\n            state[\"dialogue\"] = empty_dialogue()\n            if state[\"flow_state\"] in {\"COLLECTING\", \"READY_TO_CONFIRM\"}:\n                state[\"flow_state\"] = \"COLLECTING\"\n                state[\"confirmation\"] = {}\n                state[\"last_question\"] = \"已升级会话，请查看并核对当前确认单后继续。\"\n\n    validate_dialogue(state[\"dialogue\"])\n    if state[\"dialogue\"][\"recovery\"] and state[\"flow_state\"] == \"READY_TO_CONFIRM\":\n        raise ValueError(\"恢复事项尚未处理，不能处于待确认状态。\")\n\n    cities = []  # 名称范围不是校验结果，城市须经后续HTTP逐条查询。\n    transports = []\n    for option in api[\"transportOptions\"]:\n        category, seat, value = option[\"category\"], option[\"option\"], option[\"value\"]\n        aliases = [value, category + seat, seat]\n        if category == \"火车\":\n            aliases += [prefix + sep + seat for prefix in (\"火车票\", \"高铁\", \"动车\") for sep in (\"\", \"-\")]\n        if category == \"飞机\":\n            aliases += [\"机票-\" + seat, \"机票\" + seat]\n            if seat == \"经济舱\": aliases += [\"飞机经济仓\"]\n        transports.append({\"name\": value, \"code\": value, \"aliases\": list(dict.fromkeys(aliases))})\n    if not transports or len({x[\"code\"] for x in transports}) != len(transports):\n        raise ValueError(\"交通接口没有返回有效的唯一选项。\")\n    employee = {\"id\": emp[\"employeeId\"], \"name\": emp[\"employeeName\"], \"role\": \"DEMO_ORDINARY\",\n                \"base_city\": emp[\"baseCity\"][\"cityName\"], \"department\": department[\"name\"], \"payer_company\": company[\"name\"],\n                \"department_id\": department[\"id\"], \"payer_company_id\": company[\"id\"]}\n    seed = str(run_id or \"\").strip()\n    if not seed:\n        seed = now.isoformat() + query\n    context = {\"demo_case\": case, \"reference_date\": reference.isoformat(),\n               \"weekday\": \"星期\" + \"一二三四五六日\"[reference.weekday()],\n               \"timezone\": \"Asia/Shanghai\", \"clock_source\": clock_source,\n               \"draft_seed\": \"DEMO-DRAFT-\" + hashlib.sha256(seed.encode()).hexdigest()[:16],\n               \"employee\": employee, \"can_submit\": True,\n               \"activity_mode\": \"NONE\",\n               \"check_available\": True, \"cities\": cities, \"city_names\": api[\"cityNames\"],\n               \"transports\": transports, \"departments\": [employee[\"department\"]],\n               \"payer_companies\": [employee[\"payer_company\"]], \"external_history\": []}\n    model_context = {key: context[key] for key in (\n        \"reference_date\", \"weekday\", \"timezone\", \"clock_source\", \"employee\", \"activity_mode\")}\n    model_context.update({\"city_names\": api[\"cityNames\"],\n                          \"transport_options\": [t[\"name\"] for t in transports],\n                          \"departments\": context[\"departments\"], \"payer_companies\": context[\"payer_companies\"]})\n    semantic_questions = [{key: x.get(key, \"\") for key in (\"id\", \"code\", \"target\", \"field\", \"question\")}\n                          for x in state[\"pending\"] if x.get(\"code\") == \"CLARIFICATION\"]\n    form_issues = [{key: x.get(key, \"\") for key in (\"code\", \"target\", \"field\", \"question\")}\n                   for x in state[\"pending\"] if x.get(\"code\") != \"CLARIFICATION\"]\n    draft_view = {}\n    if state[\"draft\"]:\n        draft_view = {k: state[\"draft\"].get(k) for k in (\"draft_id\", \"revision\", \"reason\", \"travel_type\", \"department\", \"payer_company\", \"scope_requests\")}\n        draft_view[\"all_transport\"] = {k: state[\"draft\"].get(\"all_transport\", {}).get(k, \"\") for k in (\"value\", \"source\")}\n        draft_view[\"trips\"] = [{\"id\": t[\"id\"], \"kind\": t[\"kind\"], \"date_relation\": t.get(\"date_relation\", {}), **{\n            f: {k: t[f].get(k, \"\") for k in (\"value\", \"source\")}\n            for f in (\"from_city\", \"to_city\", \"depart_date\", \"arrive_date\", \"transport\")}} for t in state[\"draft\"][\"trips\"]]\n    rec = state[\"dialogue\"][\"recovery\"]\n    focus = state[\"dialogue\"][\"focus\"]\n    focus_view = {\"draft_id\": focus[\"draft_id\"], \"revision\": focus[\"revision\"],\n                  \"questions\": [{k: x[k] for k in (\"id\", \"target\", \"field\", \"question\")} for x in focus[\"questions\"]]}\n    llm_input = {\"context\": model_context, \"flow_state\": state[\"flow_state\"],\n                 \"current_draft\": draft_view, \"pending_questions\": semantic_questions,\n                 \"form_issues\": form_issues,\n                 \"last_question\": state[\"last_question\"], \"user_message\": query,\n                 \"dialogue_focus\": focus_view,\n                 \"recovery_context\": recovery_fact_context(rec, query, state[\"draft\"])}\n    return {\"context_json\": encode(context), \"state_json\": encode(state), \"query\": query,\n            \"model_context_json\": encode(model_context), \"draft_json\": encode(state[\"draft\"]),\n            \"pending_json\": encode(state[\"pending\"]), \"last_question\": state[\"last_question\"],\n            \"llm_input_json\": encode(llm_input)}\n"
@@ -1152,7 +1176,7 @@ workflow:
         type: code
         variables:
         - value_selector:
-          - sys
+          - '2000000000050'
           - query
           value_type: string
           variable: query
@@ -3495,7 +3519,7 @@ workflow:
 
             - CREATE_FLOW：新建差旅申请、明确编辑新申请草稿、无生命周期草稿时描述出差安排或补新申请字段；交给原流程。存在生命周期草稿但用户明确说“新申请”仍用 CREATE_FLOW（查询新申请单据除外）。
 
-            - QUERY：查询已提交单据、历史出差、在某日期/城市的申报行程。filter 只允许 keyword/city/dateFrom/dateTo/temporal/dateBasis/status/effectiveOnly/limit/offset。temporal 为 past/current/future；dateBasis 为 trip 或 submitted；日期 YYYY-MM-DD，按 businessDate 解析相对日期。用户没说的筛选不填，不能用状态推断审批结果。普通按出行日期查；明确说提交时间才 dateBasis=submitted。
+            - QUERY：查询已提交单据、历史出差、在某日期/城市的申报行程。filter 只允许 keyword/city/dateFrom/dateTo/temporal/dateBasis/status/effectiveOnly/limit/offset。temporal 为 past/current/future；dateBasis 为 trip 或 submitted；日期 YYYY-MM-DD，按 businessDate 解析相对日期。用户没说的筛选不填，不能用状态推断审批结果。“今天/某天在哪里、在哪个城市出差”必须 dateFrom=dateTo=该具体日期；今天取 businessDate，不能只用 temporal=current 代替单日区间。只有“当前有哪些出差”这类列表请求可单用 temporal=current。普通按出行日期查；明确说提交时间才 dateBasis=submitted。
 
             - DETAIL：查看已有单据；reference 仅来自用户明确的单号或 ID。“第二张”用 resultIndex:2（一基）；“这张”可不填，让服务端唯一定位。不能从多个结果里猜对象。
 
@@ -3534,6 +3558,11 @@ workflow:
             “事由改成拜访客户并提交” → {"intent":"EDIT","patch":{"remark":"拜访客户"}}
 
             “确认提交变更” → {"intent":"CONFIRM"}
+
+
+            “查一下我今天在哪里出差，对应哪张申请？”（businessDate=2026-09-13）→ {"intent":"QUERY","filter":{"dateFrom":"2026-09-13","dateTo":"2026-09-13","dateBasis":"trip"}}
+
+            “撤回这张需要多久”“如果撤回会怎样”“他说撤回这张”均是咨询/条件/引用，输出 HELP；“不要撤销刚才的修改”是 HELP，不能输出 CANCEL。
 
             '
         - id: lifecycle-user
@@ -3829,6 +3858,46 @@ workflow:
       selected: false
       positionAbsolute:
         x: 3400
+        y: -500
+    - id: '2000000000050'
+      type: custom
+      data:
+        type: code
+        title: LC_CREATE-明确新申请确认口令归一化
+        desc: ''
+        selected: false
+        code_language: python3
+        code: "\"\"\"只在创建分支归一化已明确选择的新申请口令，后续原确认门控完整保留。\"\"\"\nimport json\n\ndef main(query,cv_session):\n    command=query.strip().rstrip('。.!！').strip()\n    if command!='确认提交新申请': return {'query':query}\n    state=json.loads(cv_session) if isinstance(cv_session,str) else cv_session\n    if not isinstance(state,dict) or not state.get('draft'):\n        raise ValueError('当前没有新申请草稿，不能确认提交新申请。')\n    if state.get('flow_state') not in ('READY_TO_CONFIRM','SUBMITTED'):\n        raise ValueError('新申请尚未准备好确认，请先核对完整的新申请草稿。')\n    # 不改变任何草稿/确认字段；N05P、N10 等仍验证同一版本与 fingerprint。\n    return {'query':'确认提交'}\n"
+        variables:
+        - variable: query
+          value_selector:
+          - sys
+          - query
+          value_type: string
+        - variable: cv_session
+          value_selector:
+          - conversation
+          - cv_session
+          value_type: string
+        outputs:
+          query:
+            type: string
+            children: null
+        error_strategy: fail-branch
+        retry_config:
+          retry_enabled: false
+          max_retries: 0
+          retry_interval: 0
+      position:
+        x: 3720
+        y: -500
+      sourcePosition: right
+      targetPosition: left
+      width: 260
+      height: 130
+      selected: false
+      positionAbsolute:
+        x: 3720
         y: -500
     viewport:
       x: -1259.25

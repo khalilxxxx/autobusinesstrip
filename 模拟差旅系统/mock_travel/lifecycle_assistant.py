@@ -77,6 +77,9 @@ class LifecycleAssistant:
             CREATE TABLE IF NOT EXISTS assistant_lifecycle_turns(
                 request_id TEXT PRIMARY KEY, cid TEXT NOT NULL, fingerprint TEXT NOT NULL, reply_json TEXT);
             ''')
+            columns={row['name'] for row in conn.execute('PRAGMA table_info(assistant_lifecycle_turns)')}
+            if 'business_request_id' not in columns:
+                conn.execute('ALTER TABLE assistant_lifecycle_turns ADD COLUMN business_request_id TEXT')
 
     def _read(self,cid):
         self.store.private_conversation(cid)
@@ -93,11 +96,18 @@ class LifecycleAssistant:
         documents=[]
         for reference in state['resultIds']:
             doc=self.service.document(reference)
+            filters=(state.get('querySummary') or {}).get('filters',{})
+            if filters.get('dateFrom') and filters.get('dateFrom')==filters.get('dateTo'):
+                matching=self.service.list_documents(dict(keyword=doc['applicationId'],dateFrom=filters['dateFrom'],dateTo=filters['dateTo']))
+                if matching['items']: doc=matching['items'][0]
             if doc['applicationId'] not in {x['applicationId'] for x in documents}: documents.append(doc)
         selected=self.service.document(state['selectedReference']) if state['selectedReference'] else None
+        draft=deepcopy(state['draft'])
+        if draft:
+            draft['targetDocument']=self.service.document(draft['targetId'])
         receipt=state['lastReceipt']
         if receipt and receipt['status']!='UNKNOWN': receipt=self.service.receipt(receipt['clientRequestId'])
-        return dict(documents=documents,selectedDocument=selected,draft=state['draft'],lastReceipt=receipt,querySummary=state['querySummary'])
+        return dict(documents=documents,selectedDocument=selected,draft=draft,lastReceipt=receipt,querySummary=state['querySummary'])
 
     def query(self,cid,filters):
         with self.lock:

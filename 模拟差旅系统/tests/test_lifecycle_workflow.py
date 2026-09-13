@@ -220,3 +220,94 @@ def test_dify_preview_creation_flag_prevents_ambiguous_dual_draft_confirm(env):
     result=c.post('/workflow/v1/lifecycle/turn',json=dict(user=user,query='确认提交',command=command,clientRequestId='preview-confirm')).json()
     assert '新申请' in result['reply'] and '变更' in result['reply']
     assert service.list_documents({})['total']==1
+
+
+def test_edit_after_query_uses_draft_target_and_not_selection(env):
+    app,c,cid,url=env;a,d=prepared(env);b=complete(app.state.lifecycle,create(app.state.lifecycle))
+    turn(env,'查询申请',{'intent':'QUERY'})
+    result=turn(env,'事由改为目标A会议',{'intent':'EDIT','patch':{'remark':'目标A会议'}})
+    assert a['applicationNo'] in result['reply'] and b['applicationNo'] not in result['reply']
+    turn(env,'查看另一张',{'intent':'DETAIL','reference':b['applicationId']})
+    result=turn(env,'事由改为目标A复盘',{'intent':'EDIT','patch':{'remark':'目标A复盘'}})
+    assert a['applicationNo'] in result['reply'] and b['applicationNo'] not in result['reply']
+    assert c.get(url).json()['draft']['targetId']==a['applicationId']
+
+
+@pytest.mark.parametrize('query',['不要撤销刚才的修改','能取消编辑吗','如果我放弃草稿会怎样','他说“撤销刚才的修改”是什么意思'])
+def test_nonaffirmative_local_cancel_preserves_draft_even_with_help(env,query):
+    app,c,cid,url=env;a,d=prepared(env)
+    turn(env,query,{'intent':'HELP'})
+    assert c.get(url).json()['draft']==d
+
+
+@pytest.mark.parametrize('query',['撤回这张需要多久','作废这张会有什么影响','如果撤回这张会怎样','他说“撤回这张”','撤回这张是什么意思','我想了解撤回这张的流程'])
+def test_inquiry_conditional_and_quoted_action_never_write(env,query):
+    app,c,cid,url=env;a=create(app.state.lifecycle)
+    turn(env,query,dict(intent='WITHDRAW',reference=a['applicationId']))
+    assert app.state.lifecycle.document(a['applicationId'])['status']=='S002'
+    with app.state.store.connection() as conn: assert conn.execute('SELECT count(*) FROM lifecycle_receipts').fetchone()[0]==0
+
+
+def test_recovery_turn_replay_projects_original_receipt_current_document(env,monkeypatch):
+    app,c,cid,url=env;service=app.state.lifecycle;a=create(service);real=service.receipt
+    def unavailable(rid,*args,**kwargs):
+        real(rid,*args,**kwargs);raise OSError('lost')
+    monkeypatch.setattr(service,'receipt',unavailable)
+    command=dict(intent='WITHDRAW',reference=a['applicationId'])
+    turn(env,'撤回这张',command,'business-original')
+    monkeypatch.setattr(service,'receipt',real)
+    turn(env,'撤回这张',command,'recovery-run')
+    a=complete(service,operation(service,service.document(a['applicationId']),'resubmit',payload()))
+    newer=complete(service,operation(service,a,'change',payload('DEMO_BEIJING')))
+    restarted=TestClient(create_app(app.state.store.path));user=app.state.assistant_manager.store.private_conversation(cid)['dify_user']
+    result=restarted.post('/workflow/v1/lifecycle/turn',json=dict(user=user,query='撤回这张',command=command,clientRequestId='recovery-run')).json()
+    assert newer['applicationNo'] in result['reply'] and '以下为当前单据' in result['reply']
+    assert a['applicationNo'] not in result['reply']
+
+
+def test_today_where_query_uses_exact_day_and_names_inferred_city(env):
+    from datetime import date,timedelta
+    from mock_travel.catalog import business_time
+    app,c,cid,url=env;today=date.fromisoformat(business_time()['date'])
+    a=complete(app.state.lifecycle,create(app.state.lifecycle,payload(start=str(today-timedelta(days=2)),end=str(today+timedelta(days=2)))))
+    result=turn(env,'查一下我今天在哪里出差，对应哪张申请？',{'intent':'QUERY','filter':{'temporal':'current'}})
+    state=c.get(url).json(); assert state['querySummary']['filters']['dateFrom']==str(today)
+    assert state['querySummary']['filters']['dateTo']==str(today)
+    assert a['applicationNo'] in result['reply'] and '上海' in result['reply'] and '申报停留' in result['reply']
+    assert state['documents'][0]['locations'][0]['kind']=='stay'
+
+
+def test_explicit_new_application_confirmation_never_submits_lifecycle(env):
+    app,c,cid,url=env;a,d=prepared(env)
+    result=turn(env,'确认提交新申请',{'intent':'CONFIRM'})
+    assert result['handled'] and '新申请' in result['reply']
+    assert c.get(url).json()['draft']==d and app.state.lifecycle.list_documents({})['total']==1
+
+
+def test_draft_is_not_presented_as_effective_and_differences_are_readable(env):
+    app,c,cid,url=env;a,d=prepared(env)
+    result=turn(env,'改为研发部和短期异地办公',{'intent':'EDIT','patch':{'departmentId':'DEMO_DEPT_002','dqydbg':'Y','tripUpdates':[{'index':2,'dateFrom':'2026-01-06'}]}})
+    assert '未提交草稿' in result['reply'] and '尚未生效' in result['reply']
+    assert '原单批准安排仍有效' in result['reply']
+    assert '演示研发部' in result['reply'] and '短期异地办公' in result['reply']
+    assert 'DEMO_DEPT_002' not in result['reply'] and 'dateFrom' not in result['reply']
+
+
+def test_change_receipt_explains_predecessor_remains_effective(env):
+    app,c,cid,url=env;a,d=prepared(env)
+    result=turn(env,'确认提交变更',{'intent':'CONFIRM'})
+    assert '前序批准安排仍有效' in result['reply']
+
+
+@pytest.mark.parametrize('query',["他说'撤销刚才的修改'",'撤销刚才的修改要收费','撤销刚才的修改之前先备份'])
+def test_local_cancel_requires_direct_instruction(env,query):
+    app,c,cid,url=env;a,d=prepared(env)
+    turn(env,query,{'intent':'CANCEL'})
+    assert c.get(url).json()['draft']==d
+
+
+def test_old_number_detail_explains_current_document_resolution(env):
+    app,c,cid,url=env;service=app.state.lifecycle;a=complete(service,create(service))
+    newer=complete(service,operation(service,a,'change',payload('DEMO_BEIJING')))
+    reply=turn(env,'查看'+a['applicationNo']+'的详情',dict(intent='DETAIL',reference=a['applicationNo']))['reply']
+    assert '原编号' in reply and '当前单据' in reply and newer['applicationNo'] in reply
