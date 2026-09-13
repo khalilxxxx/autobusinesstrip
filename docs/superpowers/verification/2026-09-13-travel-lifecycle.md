@@ -2,6 +2,13 @@
 
 日期：2026-09-13。此文件随实际执行更新；需求中的验收场景不是测试通过的证据。
 
+交付结论：生命周期扩展已完成，最终功能代码为 `4f0ecec3a0aad75c2e11491d3bba00e9b375b825`。最终全分支审查发现的两项 Important 已修复，限定复查逐项确认 ADDRESSED，未发现修复引入的新 Critical/Important；没有遗留问题或需裁决的延期项。新版保留在 `feature/travel-lifecycle` 及其独立工作树运行，原目录 `main` 和旧 Dify 工作流保持原版。
+
+- 新助手：<http://127.0.0.1:8876/assistant>；新模拟控制台：<http://127.0.0.1:8876/simulator>。
+- 新 Dify：<https://udify.app/chat/R8lohnltNjSNQ4hI>，已发布 #2（51 节点、87 连线）。
+- 原助手：<http://127.0.0.1:8766/assistant>；原模拟控制台：<http://127.0.0.1:8766/simulator>。
+- 当前新 Dify 通过本机临时隧道连接模拟接口；本机服务和隧道需保持运行。重启后如地址变化，按 `模拟差旅系统/使用说明.md` 仅更新新应用。
+
 ## 原版保存
 
 - 原版提交：936c625b6627cc17916895cd62998063ea586e1e；标签：demo-baseline-20260913。
@@ -54,7 +61,7 @@
 - 同一真实双草稿会话随后插入历史查询、修改原变更草稿、输入“不要撤销刚才的修改”、确认提交变更，均保持正确目标。第二代变更完成后，重复前代审批完成请求未回退当前指针；最新单作废为 S100，根单／前代／最新单三个引用均指向已作废最新单，旧版未恢复。
 - Task2 两轮独立复查最终通过，head fb00095。第二轮修复陈旧确认拒绝的同 run 重放，并兼容五种常用单据名称；`test_lifecycle_workflow.py` 定向 52 passed，原 UNKNOWN 恢复回归通过。新 DSL 本轮未变。
 
-前端办理界面与正式运行脚本已在 2a83ab9 提交，首轮审查修复 da21643；全部任务独立审查与限定复查通过，正在执行最终全分支审查。
+前端办理界面与正式运行脚本已在 2a83ab9 提交，首轮审查修复 da21643；全部任务独立审查与限定复查通过。最终全分支审查及最后两项修复复查也已完成，详见下方最终验证记录。
 
 ## Task 3 自动验证与浏览器预检
 
@@ -72,7 +79,7 @@
 
 ## 正式运行与浏览器办理验收
 
-- 通过 `run-lifecycle.sh` 切换到正式入口：server PID 52895、gateway PID 52899，沿用新 tunnel PID 47506。8876 `/health` HTTP 200，正式状态显示三个进程均运行；临时 bootstrap server/gateway 已按真实路径与启动身份核对后停止。旧服务未操作。
+- 正式入口已加载最终功能代码 `4f0ecec`：server PID 54874、gateway PID 54880，沿用新 tunnel PID 47506。8876 `/health` HTTP 200，`lifecycle_control.py status` 确认三个进程均运行；服务切换均按 PID、完整命令与启动身份核对后，仅替换新版 server/gateway。旧服务未操作。
 - Chrome 中完整打开查询面板、单据详情和独立编辑器。实际办理测试单 `DEMO-CL-20260913-8443A2DCC949`：S002 撤回后为 S005；事由编辑、差异保存、同号重提回 S002；模拟控制台开始审批／完成后为 S004。原号、轮次 2 和 create/withdraw/resubmit/start/complete 连续历史经真实 API 核对。
 - 旧页面仍显示 S002 时点击撤回，服务端拒绝过期请求；界面提示“单据已变化”，刷新为审批完成，没有回退业务状态。
 - Chrome 变更表单实际修改部门、付款公司、差旅类型、事由和返程日期，并添加／删除第三段；保存后完整差异列出四字段及返程变化。提交后生成 `DEMO-BG-20260913-4916C291F347`，真实 DTO 确认前序 S004/YBG 有效、新单 S002/D 尚未生效。
@@ -82,18 +89,34 @@
 
 - 实际通过另一窗口保存同一会话草稿使 revision 从 1 变为 2，再在 Chrome 旧页面点击保存：返回“草稿已变化”，本地输入完整保留，“保存并查看差异”和“放弃本次编辑”恢复可用，界面没有永久忙碌。随后放弃验收草稿、作废当前有效申请成功，真实 DTO 为 S100、currentEffectiveId=null。
 
-## 整合回归与交付状态
+## 最终修复、复查与整合验证
 
-代码版本 da21643，主代理于 19:22 执行整合回归：
+最终全分支审查范围为 `936c625..a299e58`，由独立审查者完成，共发现 Critical 0、Important 2、Minor 0。两项问题集中修复为 `4f0ecec`；另一位独立审查者仅复查 `a299e58..4f0ecec`，逐项确认已解决，修复差异没有新增 Critical/Important，也无范围外观察。没有裁决保留或延期的问题。
+
+| 最终发现 | 修复结果与验证 |
+|---|---|
+| HTTP 200 UNKNOWN 或 FAILED 恢复时过早清除本地请求 | UNKNOWN 保留原请求；浏览器无本地记录时从服务端重建恢复入口；成功／失败先通过新会话内 recover 路由同步助手终态与草稿锁，只在同一请求终态且解锁后清除。自动测试覆盖 UNKNOWN、FAILED、无 localStorage 和其他请求终态隔离。网关白名单未扩展。 |
+| 同一草稿自然语言更新后，旧表单可能覆盖新 revision | 未编辑表单自动同步新版本；有未保存内容则保留输入并提示冲突、禁用保存和提交；用户可显式采用最新内容。自动测试与真实 Chrome/Dify 复测均通过。 |
+
+代码版本 `4f0ecec` 的完整测试与构建由实现任务执行并记录；主代理核对提交范围、限定复查结果，并完成同版本真实浏览器与服务验收。此后仅修改交付文档，没有再次变更功能代码：
 
 | 命令 | 实际结果 |
 |---|---|
-| 前端 npm test -- --reporter=dot | 7 files / 56 tests passed，2.03 秒 |
-| 后端 .venv/bin/python -m pytest tests -q | 186 passed，11.47 秒 |
-| 修复后的前端 npm run build（实现任务执行） | 1934 modules，933 ms，成功 |
-| 新 Dify DSL（该轮源码未变） | 5 tests OK，沿用已执行结果 |
+| 前端 npm test -- --run --reporter=dot | 7 files / 62 tests passed |
+| 后端 .venv/bin/python -m pytest tests -q | 187 passed，12.07 秒 |
+| 前端 npm run build | 1934 modules，974 ms，成功 |
+| 新 Dify DSL（最终修复未变更） | 5 tests OK，沿用已执行结果，无需重新导入或发布 |
 
-Task3 六项修复的定向测试先实际得到前端 6 failed / 后端 4 failed，再得到前端 10 passed、runtime+gateway 12 passed。最终全分支审查尚待完成；不以整合回归代替审查结论。
+Task3 首轮六项修复的定向测试先实际得到前端 6 failed / 后端 4 failed，再得到前端 10 passed、runtime+gateway 12 passed。最终两项修复的新增回归在旧实现上实际得到前端 5 failed，后端恢复路由 HTTP 404；修复后上表完整验证通过。
+
+最后一轮 Chrome 验收使用真实 Dify 会话 `81505fb0d9bf41febbb581ccf375df44` 和同一草稿 `db9f8bb576a34287a85b8032c60dcbed`：
+
+1. 打开编辑器但不修改，收起后自然语言将事由改为“客户项目驻场培训”；同一草稿更新到 revision 2，重开编辑器自动显示新事由，差异一致。
+2. 表单输入“QA 本地未保存的事由”而不保存，收起后自然语言改为“客户现场专项验收”；草稿更新到 revision 3。重开后本地输入保留，显示版本冲突，保存／提交均禁用。
+3. 点击“使用最新草稿内容”后，载入“客户现场专项验收”，冲突消失，保存／提交恢复可用。
+4. 点击“放弃本次编辑”结束验收，真实 API 确认草稿为空、原单 `DEMO-SEED-未来差旅` 仍为 S004/D、有效且无在途变更，没有提交新变更。
+
+真实观察和前后服务数据保存在 `.local/qa/syncqa-ui-evidence.json`。收尾再次读取新版运行状态，新旧 8876／8766 `/health` 均为 HTTP 200。
 
 ## 真实链路执行范围
 
@@ -110,7 +133,7 @@ Task3 六项修复的定向测试先实际得到前端 6 failed / 后端 4 faile
 
 ## 43 项场景证据索引（随最终联调更新）
 
-下表按需求编号定位已执行的自动测试或真实服务证据。单元／接口测试与真实模型对话分开记录；界面尚在接入时不视为 UI 验收完成。
+下表按需求编号定位已执行的自动测试或真实服务证据。单元／接口测试与真实模型对话分开记录，浏览器实际办理验收见前文。
 
 自动测试简称：Core=`tests/test_lifecycle.py`；Query=`tests/test_lifecycle_query.py`；API=`tests/test_lifecycle_api.py`；Assistant=`tests/test_lifecycle_assistant.py`；Workflow=`tests/test_lifecycle_workflow.py`。测试路径均在新版 `模拟差旅系统` 下。
 
@@ -122,7 +145,7 @@ Task3 六项修复的定向测试先实际得到前端 6 failed / 后端 4 faile
 | Q04 | Query：effective_pending_status_temporal_and_pagination | nl-change-approved.json 保存审批前两单效力 |
 | Q05 | Core：multigeneration_references；Query：version_is_selected | 旧号只返回新内容，关联提示真实复测通过 |
 | Q06 | API：seed_is_repeatable；Core：ybx_and_foreign_document | 首轮未来列表含 S005/S003/S002/S004 |
-| Q07 | Workflow：ambiguous_withdraw_requires_unique_object | 前端选择办理待接入 |
+| Q07 | Workflow：ambiguous_withdraw_requires_unique_object | Chrome 列表选择详情后办理通过；自然语言多候选澄清由自动测试覆盖 |
 | Q08 | Query：invalid_filters；Core：ybx_and_foreign_document | live-api-evidence 区分空结果和 422 |
 | Q09 | Query：version_is_selected_before_city_and_date_filters | HTTP 旧号解析当前内容 |
 | W01 | Core：change_withdraw_void；Assistant：query_detail_withdraw | creation 对话实际撤回 S002→S005 |
@@ -151,9 +174,9 @@ Task3 六项修复的定向测试先实际得到前端 6 failed / 后端 4 faile
 | C10 | Core：change_records_reason_and_all_editable_nontrip_fields | 真实模型同轮修改四个非行程字段＋返程，实值核对通过 |
 | C11 | Core：multigeneration_references | live-api-evidence 第二代前后效力正确 |
 | C12 | Core：change_withdraw_void_restores_direct_predecessor | live-api-evidence：取消旧尝试后另建并批准 |
-| X01 | Assistant：query_detail_withdraw_preserve_create_state_bytes | 创建草稿和 fingerprint 在实际查询插入前后相同；生命周期查询后编辑保持原目标，真实复测通过 |
+| X01 | Assistant：query_detail_withdraw_preserve_create_state_bytes；LifecycleExperience：pristine/dirty revision | 创建草稿和 fingerprint 查询前后相同；生命周期查询后编辑保持原目标；真实 Chrome 验证新 revision 自动同步及未保存输入冲突保护 |
 | X02 | Workflow：negative_inquiry_and_cancel_never_write | 否定取消与咨询误判回归及独立复查通过；实际“不要撤销刚才的修改”保留草稿 |
-| X03 | Assistant/Workflow：UNKNOWN 恢复、原请求号重放 | 故障注入和恢复 run 投影回归通过；陈旧确认拒绝稳定回放 |
+| X03 | Assistant/Workflow：UNKNOWN 恢复、原请求号重放；LifecycleExperience：UNKNOWN/FAILED 同步、无本地记录恢复、请求终态隔离 | 故障注入和恢复 run 投影回归通过；陈旧确认拒绝稳定回放；最后修复补齐 UI 与助手终态同步，未人工制造线上网络故障 |
 | X04 | Core：状态机幂等和版本检查 | 实际重复完成请求回原结果；乱序前代审批不回退 |
 | X05 | Core：success_receipt_of_replaced_document_resolves_current_content | 真实旧号仅返回最新变更内容 |
 | X06 | Core：resubmit-void 并发 | 两连接最多一个成功，陈旧请求被拒 |
