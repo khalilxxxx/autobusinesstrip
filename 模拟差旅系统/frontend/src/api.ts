@@ -1,7 +1,8 @@
 import type {
   ApplicationList, AssistantStatus, ConversationDetail, ConversationSummary,
   ApiIssue, CityOption, DraftEdits, FormTransport, IntegrationEvent, MockEnvelope, Scenario,
-  SubmissionReceipt, TravelApplication, Turn,
+  SubmissionReceipt, TravelApplication, Turn, LifecycleDocument, LifecycleOptions,
+  LifecycleQueryFilters, LifecycleReceipt, LifecycleState,
 } from './types';
 
 export class ApiError extends Error {
@@ -38,15 +39,15 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const value = body as {
-      error?: { code?: string; message?: string; issues?: ApiIssue[] };
+      error?: { code?: string; message?: string; issues?: ApiIssue[]; details?: ApiIssue[] };
       code?: string;
-      message?: { text?: string };
+      message?: { text?: string; details?: ApiIssue[] };
     };
     throw new ApiError(
       value.error?.message || value.message?.text || `请求失败（HTTP ${response.status}）`,
       response.status,
       value.error?.code || value.code,
-      value.error?.issues || [],
+      value.error?.issues || value.error?.details || value.message?.details || [],
     );
   }
   return body as T;
@@ -87,6 +88,41 @@ export const assistantApi = {
     `/assistant/api/conversations/${encodeURIComponent(id)}/submit`,
     { method: 'POST', body: JSON.stringify(payload) },
   ),
+  lifecycle: (id: string) => requestJson<LifecycleState>(
+    `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle`,
+  ),
+  lifecycleQuery: (id: string, filters: LifecycleQueryFilters) => requestJson<LifecycleState>(
+    `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/query`,
+    { method: 'POST', body: JSON.stringify(filters) },
+  ),
+  lifecycleDetail: (id: string, reference: string) => requestJson<LifecycleState>(
+    `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/detail`,
+    { method: 'POST', body: JSON.stringify({ reference }) },
+  ),
+  lifecyclePrepare: (id: string, payload: { reference: string; mode: 'change' | 'resubmit' }) =>
+    requestJson<LifecycleState>(`/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/prepare`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+  lifecycleSave: (id: string, payload: { draftId: string; revision: number; payload: TravelApplication['request'] }) =>
+    requestJson<LifecycleState>(`/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/draft`, {
+      method: 'PUT', body: JSON.stringify(payload),
+    }),
+  lifecycleSubmit: (id: string, payload: { draftId: string; revision: number; fingerprint: string; clientRequestId: string }) =>
+    requestJson<LifecycleState>(`/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/submit`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+  lifecycleAction: (id: string, payload: { reference: string; action: 'withdraw' | 'void'; expectedVersion: number;
+    clientRequestId: string; reason?: string }) => requestJson<LifecycleState>(
+      `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/action`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  lifecycleCancelDraft: (id: string) => requestJson<LifecycleState>(
+    `/assistant/api/conversations/${encodeURIComponent(id)}/lifecycle/draft`, { method: 'DELETE' },
+  ),
+  lifecycleOptions: () => requestJson<MockEnvelope<LifecycleOptions>>('/mock/v1/lifecycle/options'),
+  lifecycleReceipt: (requestId: string) => requestJson<MockEnvelope<LifecycleReceipt>>(
+    `/mock/v1/lifecycle/receipts/${encodeURIComponent(requestId)}`,
+  ),
 };
 
 export const simulatorApi = {
@@ -104,5 +140,22 @@ export const simulatorApi = {
   ),
   events: () => requestJson<MockEnvelope<{ items: IntegrationEvent[] }>>(
     '/mock/v1/integration/events?limit=50',
+  ),
+  lifecycleDocuments: () => requestJson<MockEnvelope<{ items: LifecycleDocument[]; total: number; limit: number; offset: number }>>(
+    '/mock/v1/lifecycle/documents?limit=100',
+  ),
+  lifecycleDocument: (id: string) => requestJson<MockEnvelope<LifecycleDocument>>(
+    `/mock/v1/lifecycle/documents/${encodeURIComponent(id)}`,
+  ),
+  lifecycleApproval: (id: string, payload: { action: 'start' | 'complete' | 'return'; clientRequestId: string;
+    expectedVersion: number; reason?: string }) => requestJson<MockEnvelope<{ document: LifecycleDocument }>>(
+      `/mock/v1/lifecycle/documents/${encodeURIComponent(id)}/approval`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  seedLifecycle: () => requestJson<MockEnvelope<{ created?: number; preserved?: number; demoOnly: boolean }>>(
+    '/mock/v1/lifecycle/seed', { method: 'POST', body: '{}' },
+  ),
+  lifecycleReceipt: (requestId: string) => requestJson<MockEnvelope<LifecycleReceipt>>(
+    `/mock/v1/lifecycle/receipts/${encodeURIComponent(requestId)}`,
   ),
 };

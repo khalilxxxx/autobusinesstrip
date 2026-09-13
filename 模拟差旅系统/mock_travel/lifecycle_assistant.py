@@ -35,6 +35,10 @@ class Prepare(StrictModel):
     mode: Literal['change','resubmit']
 
 
+class Detail(StrictModel):
+    reference: Identifier
+
+
 class Save(StrictModel):
     draftId: Identifier
     revision: int = Field(ge=1)
@@ -261,6 +265,8 @@ def register_assistant_lifecycle(app,router,db_path):
     def view(cid:str): return assistant.view(cid)
     @router.post(prefix+'/query')
     def query(cid:str,body:Filters): return assistant.query(cid,body.model_dump(exclude_none=True))
+    @router.post(prefix+'/detail')
+    def detail(cid:str,body:Detail): return assistant.detail(cid,body.reference)
     @router.post(prefix+'/prepare')
     def prepare(cid:str,body:Prepare): return assistant.prepare(cid,body.reference,body.mode)
     @router.put(prefix+'/draft')

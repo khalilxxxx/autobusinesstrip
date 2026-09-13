@@ -1,6 +1,7 @@
 """只向 Dify 开放固定接口的本地网关；运行于 127.0.0.1:8767。"""
 import json
 import logging
+import os
 from pathlib import Path
 import re
 import secrets
@@ -10,7 +11,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
 
-BRIDGE_CONFIG = Path(__file__).resolve().parents[1] / ".local" / "bridge.json"
+BRIDGE_CONFIG = Path(os.environ.get(
+    "MOCK_TRAVEL_BRIDGE_CONFIG",
+    Path(__file__).resolve().parents[1] / ".local" / "bridge.json",
+))
 logger = logging.getLogger(__name__)
 
 ALLOWED = {
@@ -26,14 +30,17 @@ ALLOWED = {
 FORWARDED_HEADERS = {"content-type", "x-client-request-id", "x-draft-id", "x-draft-version", "x-workflow-run-id"}
 
 
-def create_gateway(*, token=None, transport=None, upstream_url="http://127.0.0.1:8766"):
+def create_gateway(*, token=None, transport=None, upstream_url=None):
     if token is None:
         try:
-            token = json.loads(BRIDGE_CONFIG.read_text(encoding="utf-8"))["token"]
+            bridge = json.loads(BRIDGE_CONFIG.read_text(encoding="utf-8"))
+            token = bridge["token"]
+            upstream_url = upstream_url or bridge.get("upstream_url")
         except (OSError, ValueError, KeyError):
             raise RuntimeError("请先准备 .local/bridge.json 中的网关凭证。") from None
     if not isinstance(token, str) or not token or not token.isascii() or not token.isprintable():
         raise RuntimeError("网关凭证格式无效。")
+    upstream_url = upstream_url or "http://127.0.0.1:8766"
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     def error(status, code, message):

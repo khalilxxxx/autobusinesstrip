@@ -144,6 +144,109 @@ export interface TravelApplication {
   };
 }
 
+export type LifecycleStatus = 'UNKNOWN' | 'S002' | 'S003' | 'S004' | 'S005' | 'S100' | string;
+export type LifecycleDocumentType = 'APPLICATION' | 'CHANGE';
+
+export interface LifecycleActionEligibility {
+  allowed: boolean;
+  reason: string | null;
+}
+
+export interface LifecycleHistoryItem {
+  action: string;
+  at: string;
+  fromStatus: string | null;
+  toStatus: string;
+  role: string;
+  submissionRound: number;
+}
+
+export interface LifecycleDocument extends TravelApplication {
+  submittedAt: string;
+  status: LifecycleStatus;
+  tflag: 'D' | 'YBG' | string;
+  documentType: LifecycleDocumentType;
+  version: number;
+  submissionRound: number;
+  rootId: string;
+  rootNo: string;
+  predecessorId: string | null;
+  currentEffectiveId: string | null;
+  pendingChangeId: string | null;
+  isEffective: boolean;
+  isSuperseded: boolean;
+  tripStart: string;
+  tripEnd: string;
+  history: LifecycleHistoryItem[];
+  actions: Record<'withdraw' | 'void' | 'change' | 'resubmit', LifecycleActionEligibility>;
+  stay?: { date: string; cityId?: string; cityName?: string; description?: string } | null;
+}
+
+export interface LifecycleDifference {
+  field: string;
+  before: unknown;
+  after: unknown;
+}
+
+export interface LifecycleDraft {
+  id: string;
+  revision: number;
+  mode: 'change' | 'resubmit';
+  targetId: string;
+  targetVersion: number;
+  targetDocument: LifecycleDocument;
+  payload: TravelApplication['request'];
+  original: TravelApplication['request'];
+  differences: LifecycleDifference[];
+  fingerprint: string;
+  requestId?: string;
+}
+
+export interface LifecycleQueryFilters {
+  keyword?: string;
+  city?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  temporal?: 'past' | 'current' | 'future';
+  dateBasis: 'trip' | 'submitted';
+  status?: string;
+  effectiveOnly?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface LifecycleReceipt {
+  clientRequestId: string;
+  createdAt?: string;
+  status: 'UNKNOWN' | 'SUCCEEDED' | 'FAILED' | string;
+  result: {
+    action?: string;
+    message?: string;
+    document?: LifecycleDocument;
+    documentResolvedToCurrent?: boolean;
+    [key: string]: unknown;
+  };
+  demoOnly?: boolean;
+}
+
+export interface LifecycleState {
+  documents: LifecycleDocument[];
+  selectedDocument: LifecycleDocument | null;
+  draft: LifecycleDraft | null;
+  lastReceipt: LifecycleReceipt | null;
+  querySummary: { filters: LifecycleQueryFilters; total: number; limit: number; offset: number } | null;
+}
+
+export interface LifecycleOptions {
+  departments: { id: string; name: string }[];
+  payerCompanies: { id: string; name: string }[];
+  travelTypes: { value: 'Y' | null; label: string }[];
+  transports: FormTransport[];
+  cities: { cityId: string; cityName: string; upCityId: string; upCityName: string;
+    countryId: string; provinceId: string; provinceName: string }[];
+  demoOnly: boolean;
+}
+
 export interface ApplicationList {
   items: TravelApplication[];
   total: number;

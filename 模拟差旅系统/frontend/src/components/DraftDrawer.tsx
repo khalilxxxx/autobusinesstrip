@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownUp, CircleAlert, LoaderCircle, Plus, RefreshCw, Send, Trash2, X,
 } from 'lucide-react';
@@ -135,16 +135,26 @@ export function DraftDrawer({ draft, submitting, submitLabel = '提交单据', s
   const drawerRef = useRef<HTMLElement>(null);
   const formErrorRef = useRef<HTMLParagraphElement>(null);
   const generalErrorRef = useRef<HTMLParagraphElement>(null);
+  const focusAfterRenderRef = useRef(false);
   const dirty = JSON.stringify(edits) !== JSON.stringify(initial);
 
   function focusFirstError(preferGeneral = false) {
-    window.setTimeout(() => {
-      const invalid = drawerRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
-      const target = preferGeneral ? generalErrorRef.current : invalid || formErrorRef.current;
-      target?.focus();
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 0);
+    if (preferGeneral) {
+      generalErrorRef.current?.focus();
+      generalErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    focusAfterRenderRef.current = true;
   }
+
+  useLayoutEffect(() => {
+    if (!focusAfterRenderRef.current) return;
+    focusAfterRenderRef.current = false;
+    const invalid = drawerRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    const target = invalid || formErrorRef.current;
+    target?.focus();
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 
   useEffect(() => {
     let cancelled = false;

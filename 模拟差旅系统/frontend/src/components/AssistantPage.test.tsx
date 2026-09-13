@@ -9,6 +9,8 @@ const api = vi.hoisted(() => ({
   conversation: vi.fn(),
   sendMessage: vi.fn(),
   turn: vi.fn(),
+  lifecycle: vi.fn(),
+  lifecycleOptions: vi.fn(),
 }));
 
 vi.mock('../api', () => ({ assistantApi: api }));
@@ -51,6 +53,8 @@ beforeEach(() => {
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   api.status.mockResolvedValue({ ready: true, appName: '差旅申请助手', employeeName: '普通演示员工', bridgeConfigured: true });
   api.createConversation.mockResolvedValue(detail('new'));
+  api.lifecycle.mockResolvedValue({ documents: [], selectedDocument: null, draft: null, lastReceipt: null, querySummary: null });
+  api.lifecycleOptions.mockResolvedValue({ data: { departments: [], payerCompanies: [], travelTypes: [], transports: [], cities: [], demoOnly: true } });
 });
 
 afterEach(cleanup);

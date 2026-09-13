@@ -6,6 +6,7 @@ import type { ConversationDetail, Turn } from '../types';
 const api = vi.hoisted(() => ({
   status: vi.fn(), conversations: vi.fn(), conversation: vi.fn(),
   createConversation: vi.fn(), deleteConversation: vi.fn(), sendMessage: vi.fn(), turn: vi.fn(),
+  lifecycle: vi.fn(), lifecycleOptions: vi.fn(),
 }));
 vi.mock('../api', () => ({ assistantApi: api }));
 import { AssistantPage } from './AssistantPage';
@@ -24,6 +25,8 @@ beforeEach(() => {
   api.conversations.mockResolvedValue({ items: [summary('A'), summary('B')] });
   api.conversation.mockImplementation((id: string) => Promise.resolve(detail(id)));
   api.deleteConversation.mockResolvedValue({ deleted: true });
+  api.lifecycle.mockResolvedValue({ documents: [], selectedDocument: null, draft: null, lastReceipt: null, querySummary: null });
+  api.lifecycleOptions.mockResolvedValue({ data: { departments: [], payerCompanies: [], travelTypes: [], transports: [], cities: [], demoOnly: true } });
 });
 afterEach(cleanup);
 

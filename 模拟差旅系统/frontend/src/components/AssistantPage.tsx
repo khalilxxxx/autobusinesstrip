@@ -13,6 +13,7 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { DraftCard } from './DraftCard';
 import { DraftDrawer } from './DraftDrawer';
 import { DeleteConversationDialog } from './DeleteConversationDialog';
+import { DocumentPanel } from './DocumentPanel';
 
 const examples = [
   '我下周一从杭州去桐庐拜访客户，当天高铁往返。',
@@ -490,6 +491,8 @@ export function AssistantPage() {
           <div className={`service-pill ${status?.ready ? 'ready' : 'offline'}`}>
             <span />{status?.ready ? '服务已就绪' : '服务未就绪'}
           </div>
+          <DocumentPanel conversationId={conversation?.id || null}
+            refreshToken={`${conversation?.updatedAt || ''}:${conversation?.messages.length || 0}`} />
         </header>
 
         <section className="chat-stage" aria-live="polite">

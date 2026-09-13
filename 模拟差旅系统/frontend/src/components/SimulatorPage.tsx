@@ -1,19 +1,19 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, AlertCircle, ArrowLeft, Check, ClipboardList, FileSearch, Gauge,
-  LoaderCircle, RefreshCw, Search, Settings2, XCircle,
+  LoaderCircle, Play, RefreshCw, RotateCcw, Search, Settings2, Sparkles, XCircle,
 } from 'lucide-react';
 import { simulatorApi } from '../api';
-import type { IntegrationEvent, Scenario, SubmissionReceipt, TravelApplication } from '../types';
+import type { IntegrationEvent, LifecycleDocument, Scenario, SubmissionReceipt } from '../types';
 import { errorMessage, formatDateTime, isCreateSuccess } from '../utils';
 
 export function SimulatorPage() {
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [failureMessage, setFailureMessage] = useState('');
-  const [applications, setApplications] = useState<TravelApplication[]>([]);
+  const [applications, setApplications] = useState<LifecycleDocument[]>([]);
   const [total, setTotal] = useState(0);
   const [events, setEvents] = useState<IntegrationEvent[]>([]);
-  const [detail, setDetail] = useState<TravelApplication | null>(null);
+  const [detail, setDetail] = useState<LifecycleDocument | null>(null);
   const [receiptId, setReceiptId] = useState('');
   const [receipt, setReceipt] = useState<SubmissionReceipt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,13 +21,15 @@ export function SimulatorPage() {
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [error, setError] = useState('');
   const [eventsError, setEventsError] = useState('');
+  const [lifecycleSaving, setLifecycleSaving] = useState(false);
+  const [seedNotice, setSeedNotice] = useState('');
   const detailRequestRef = useRef(0);
 
   const loadApplication = useCallback(async (id: string, updateUrl = false) => {
     const request = ++detailRequestRef.current;
     let result;
     try {
-      result = await simulatorApi.application(id);
+      result = await simulatorApi.lifecycleDocument(id);
     } catch (reason) {
       if (request !== detailRequestRef.current) return;
       throw reason;
@@ -46,7 +48,7 @@ export function SimulatorPage() {
     setError('');
     setEventsError('');
     const [scenarioResult, appsResult, eventsResult] = await Promise.allSettled([
-      simulatorApi.scenario(), simulatorApi.applications(), simulatorApi.events(),
+      simulatorApi.scenario(), simulatorApi.lifecycleDocuments(), simulatorApi.events(),
     ]);
     if (scenarioResult.status === 'fulfilled') {
       setScenario(scenarioResult.value.data);
@@ -72,11 +74,36 @@ export function SimulatorPage() {
     });
   }, [loadApplication, refresh]);
 
-  async function chooseApplication(application: TravelApplication) {
+  async function chooseApplication(application: LifecycleDocument) {
     setError('');
     try {
       await loadApplication(application.applicationId, true);
     } catch (reason) { setError(errorMessage(reason)); }
+  }
+
+  async function approve(action: 'start' | 'complete' | 'return') {
+    if (!detail || lifecycleSaving) return;
+    setLifecycleSaving(true); setError('');
+    try {
+      const response = await simulatorApi.lifecycleApproval(detail.applicationId, {
+        action, expectedVersion: detail.version, clientRequestId: crypto.randomUUID(),
+      });
+      setDetail(response.data.document);
+      const list = await simulatorApi.lifecycleDocuments();
+      setApplications(list.data.items); setTotal(list.data.total);
+    } catch (reason) { setError(errorMessage(reason)); }
+    finally { setLifecycleSaving(false); }
+  }
+
+  async function addSamples() {
+    if (lifecycleSaving) return;
+    setLifecycleSaving(true); setError(''); setSeedNotice('');
+    try {
+      await simulatorApi.seedLifecycle();
+      setSeedNotice('演示样例已补齐；操作会保留已有数据，重复点击不会重复生成。');
+      await refresh();
+    } catch (reason) { setError(errorMessage(reason)); }
+    finally { setLifecycleSaving(false); }
   }
 
   async function saveScenario(result: Scenario['submissionResult']) {
@@ -115,14 +142,16 @@ export function SimulatorPage() {
     <div className="console-shell">
       <header className="console-header">
         <div><a href="/assistant" className="back-link"><ArrowLeft size={17} />返回小智</a><h1>模拟差旅系统</h1><p>查看场景、单据、回执和接口调用链路</p></div>
-        <button className="secondary-button" onClick={() => void refresh()} disabled={loading}><RefreshCw className={loading ? 'spin' : ''} size={17} />刷新数据</button>
+        <div className="console-header-actions"><button className="secondary-button" onClick={() => void addSamples()} disabled={lifecycleSaving}><Sparkles size={17} />添加演示样例</button>
+          <button className="secondary-button" onClick={() => void refresh()} disabled={loading}><RefreshCw className={loading ? 'spin' : ''} size={17} />刷新数据</button></div>
       </header>
 
       {error && <div className="console-alert"><AlertCircle size={19} /><span>{error}</span><button onClick={() => setError('')} aria-label="关闭错误"><XCircle size={17} /></button></div>}
+      {seedNotice && <div className="console-notice"><Check size={19} /><span>{seedNotice}</span></div>}
 
       <main className="console-main">
         <section className="overview-grid">
-          <div className="metric-card"><span className="metric-icon purple"><ClipboardList /></span><div><small>模拟申请</small><strong>{loading ? '—' : total}</strong><p>当前 SQLite 中的成功单据</p></div></div>
+          <div className="metric-card"><span className="metric-icon purple"><ClipboardList /></span><div><small>当前可见单据</small><strong>{loading ? '—' : total}</strong><p>独立生命周期 SQLite；不含被替代旧版</p></div></div>
           <div className="metric-card"><span className={`metric-icon ${successScenario ? 'green' : 'red'}`}>{successScenario ? <Check /> : <AlertCircle />}</span><div><small>下次提交场景</small><strong>{scenario ? (successScenario ? '成功' : '失败') : '—'}</strong><p>只影响新的请求标识</p></div></div>
           <div className="metric-card"><span className="metric-icon blue"><Activity /></span><div><small>最近调用</small><strong>{loading ? '—' : events.length}</strong><p>最多显示 50 条接口记录</p></div></div>
         </section>
@@ -143,22 +172,28 @@ export function SimulatorPage() {
 
         <div className="console-split">
           <section className="console-card applications-card">
-            <div className="section-title"><span><ClipboardList /><span><h2>申请列表</h2><p>按创建时间倒序</p></span></span><span className="count-badge">{total} 张</span></div>
+            <div className="section-title"><span><ClipboardList /><span><h2>生命周期单据</h2><p>显示单据类型、状态和当前效力</p></span></span><span className="count-badge">{total} 张</span></div>
             {loading ? <div className="panel-state"><LoaderCircle className="spin" />正在加载</div> : applications.length === 0 ? <div className="panel-state"><ClipboardList /><strong>暂无模拟申请</strong><p>在助手中完成一次成功提交后会显示在这里。</p></div> : (
               <div className="application-list">{applications.map((application) => (
                 <button key={application.applicationId} className={detail?.applicationId === application.applicationId ? 'active' : ''} onClick={() => void chooseApplication(application)}>
-                  <span className="doc-icon"><ClipboardList /></span><span><strong>{application.applicationNo}</strong><small>{application.request.remark}</small><time>{formatDateTime(application.createdAt)}</time></span>
+                  <span className="doc-icon"><ClipboardList /></span><span><strong>{application.applicationNo}</strong><small>{application.documentType === 'CHANGE' ? '行程变更单' : '差旅申请单'} · {{ S002: '待审批', S003: '审批中', S004: '审批完成', S005: '已撤回／退回', S100: '已作废', UNKNOWN: '待核对' }[application.status] || application.status}</small><time>{application.tripStart} 至 {application.tripEnd} · {application.isEffective ? (application.tflag === 'YBG' ? '当前有效，有在途变更' : '当前有效') : '当前未生效'}</time></span>
                 </button>
               ))}</div>
             )}
           </section>
 
           <section className="console-card detail-card">
-            <div className="section-title"><span><FileSearch /><span><h2>申请详情</h2><p>助手提交到模拟系统的原始业务字段</p></span></span></div>
+            <div className="section-title"><span><FileSearch /><span><h2>单据详情与模拟审批</h2><p>S004 是审批完成；S005 保留连续流程，可沿原单号编辑重提。</p></span></span></div>
             {!detail ? <div className="panel-state"><FileSearch /><strong>请选择一张申请</strong><p>可从左侧列表查看完整路线与申请信息。</p></div> : (
               <div className="application-detail">
-                <div className="detail-heading"><div><span>模拟单号</span><strong>{detail.applicationNo}</strong></div><span className="success-badge"><Check size={14} />创建成功</span></div>
+                <div className="detail-heading"><div><span>{detail.documentType === 'CHANGE' ? '行程变更单' : '差旅申请单'}</span><strong>{detail.applicationNo}</strong></div><span className="success-badge">{{ S002: '待审批', S003: '审批中', S004: '审批完成', S005: '已撤回／退回', S100: '已作废', UNKNOWN: '待核对' }[detail.status] || detail.status}</span></div>
                 <dl className="detail-grid"><div><dt>申请人</dt><dd>{detail.request.applicantId}</dd></div><div><dt>创建时间</dt><dd>{formatDateTime(detail.createdAt)}</dd></div><div><dt>差旅类型</dt><dd>{detail.request.dqydbg === 'Y' ? '短期异地办公' : '普通差旅'}</dd></div><div><dt>部门／付款公司</dt><dd>{detail.request.departmentId} / {detail.request.payerCompanyId}</dd></div><div className="wide"><dt>出差事由</dt><dd>{detail.request.remark}</dd></div></dl>
+                <div className="approval-actions" aria-label="模拟审批操作">
+                  {detail.status === 'S002' && <button className="primary-button" onClick={() => void approve('start')} disabled={lifecycleSaving}><Play />模拟开始审批</button>}
+                  {detail.status === 'S003' && <><button className="primary-button" onClick={() => void approve('complete')} disabled={lifecycleSaving}><Check />模拟审批完成</button>
+                    <button className="secondary-console-button" onClick={() => void approve('return')} disabled={lifecycleSaving}><RotateCcw />模拟退回</button></>}
+                  {!['S002', 'S003'].includes(detail.status) && <p>当前状态无需模拟审批操作。S005 仍可由员工沿原单号编辑后重新提交。</p>}
+                </div>
                 <h3>行程明细</h3>
                 <div className="table-scroll"><table><thead><tr><th>日期</th><th>出发城市</th><th>到达城市</th><th>交通</th></tr></thead><tbody>{detail.request.trips.map((trip, index) => <tr key={`${trip.dateFrom}-${index}`}><td>{trip.dateFrom}{trip.dateTo !== trip.dateFrom && ` → ${trip.dateTo}`}</td><td>{trip.cityFrom}</td><td>{trip.cityTo}</td><td>{trip.tool}</td></tr>)}</tbody></table></div>
                 <p className="technical-id">applicationId: {detail.applicationId}</p>

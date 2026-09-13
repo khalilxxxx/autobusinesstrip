@@ -12,6 +12,9 @@ const api = vi.hoisted(() => ({
   formOptions: vi.fn(),
   cities: vi.fn(),
   submitDraft: vi.fn(),
+  lifecycle: vi.fn(),
+  lifecycleQuery: vi.fn(),
+  lifecycleOptions: vi.fn(),
 }));
 
 vi.mock('../api', () => ({ assistantApi: api }));
@@ -73,6 +76,10 @@ beforeEach(() => {
   });
   api.cities.mockResolvedValue({ items: [{ id: '310100', name: '上海市' }] });
   api.turn.mockImplementation(() => new Promise(() => {}));
+  api.lifecycle.mockResolvedValue({ documents: [], selectedDocument: null, draft: null, lastReceipt: null, querySummary: null });
+  api.lifecycleQuery.mockResolvedValue({ documents: [], selectedDocument: null, draft: null, lastReceipt: null,
+    querySummary: { filters: { dateBasis: 'trip' }, total: 0, limit: 20, offset: 0 } });
+  api.lifecycleOptions.mockResolvedValue({ data: { departments: [], payerCompanies: [], travelTypes: [], transports: [], cities: [], demoOnly: true } });
 });
 
 afterEach(cleanup);
@@ -187,6 +194,22 @@ describe('差旅草稿卡片', () => {
 });
 
 describe('草稿编辑抽屉', () => {
+  it('查询单据不会关闭创建草稿或覆盖未保存输入', async () => {
+    const view = render(<AssistantPage />);
+    const card = await view.findByLabelText('差旅申请草稿（当前版本）');
+    fireEvent.click(within(card).getByRole('button', { name: '编辑申请' }));
+    const drawer = await view.findByRole('dialog', { name: '编辑差旅申请' });
+    const reason = within(drawer).getByLabelText('出差事由') as HTMLTextAreaElement;
+    fireEvent.change(reason, { target: { value: '未保存的创建草稿输入' } });
+
+    fireEvent.click(view.getByRole('button', { name: '查询单据' }));
+    fireEvent.click(await view.findByRole('button', { name: '开始查询' }));
+
+    await waitFor(() => expect(api.lifecycleQuery).toHaveBeenCalled());
+    expect(view.getByRole('dialog', { name: '编辑差旅申请' })).not.toBeNull();
+    expect((within(drawer).getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('未保存的创建草稿输入');
+  });
+
   it('卡片显示规范城市名，抽屉保留可编辑的原始地点', async () => {
     const mappedDraft = {
       ...draft(),

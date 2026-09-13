@@ -13,7 +13,7 @@ from .assistant_store import AssistantStore
 from .catalog import employee_context, query_cities, transport_options
 from .draft_forms import FormSubmission, perform_submission, prepare_form, submission_result
 from .dify_client import DifyError, DifyService
-from .dify_probe import DEFAULT_CONFIG, ProbeError, load_config
+from .dify_probe import DEFAULT_BRIDGE_CONFIG, DEFAULT_CONFIG, ProbeError, load_config
 from .store import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -149,7 +149,7 @@ def register_assistant(app, db_path, *, dify_service=None):
             name = config.expected_app_name or name
         except ServiceError:
             pass
-        bridge_path = Path(DEFAULT_CONFIG).parent / "bridge.json"
+        bridge_path = DEFAULT_BRIDGE_CONFIG
         bridge_ready = False
         if bridge_path.exists():
             try:

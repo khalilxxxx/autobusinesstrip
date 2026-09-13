@@ -12,7 +12,14 @@ from uuid import uuid4
 import httpx
 
 
-DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / ".local" / "dify.json"
+DEFAULT_CONFIG = Path(os.environ.get(
+    "MOCK_TRAVEL_DIFY_CONFIG",
+    Path(__file__).resolve().parents[1] / ".local" / "dify.json",
+))
+DEFAULT_BRIDGE_CONFIG = Path(os.environ.get(
+    "MOCK_TRAVEL_BRIDGE_CONFIG",
+    Path(__file__).resolve().parents[1] / ".local" / "bridge.json",
+))
 DEFAULT_BASE_URL = "https://api.dify.ai/v1"
 QUERIES = (
     "帮我整理明天从杭州到上海、后天返程的出差申请草稿，事由是接口连通性测试。",
@@ -106,7 +113,7 @@ def check_network(base_url, *, transport=None):
 def check_application(config, *, chat=False, transport=None):
     base_url = _base_url(config.base_url)
     if not isinstance(config.api_key, str) or not config.api_key.strip():
-        raise ProbeError("尚未配置 api_key，请在本地 dify.json 中填入目标 Chatflow 的应用密钥。")
+        raise ProbeError("尚未配置 api_key，请在指定的本地 Dify 配置中填入目标 Chatflow 的应用密钥。")
     api_key = config.api_key.strip()
     if not api_key.isascii() or not api_key.isprintable() or any(char.isspace() for char in api_key):
         raise ProbeError("api_key 格式不正确，请使用应用 API 密钥原文。")

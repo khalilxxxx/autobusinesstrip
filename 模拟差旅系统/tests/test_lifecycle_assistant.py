@@ -75,6 +75,20 @@ def test_draft_exposes_its_target_document_independent_of_selection(env):
     assert view['draft']['targetId']==a['applicationId']
     assert view['draft']['targetDocument']['applicationId']==a['applicationId']
 
+
+def test_detail_route_updates_pronoun_target_without_replacing_query_results(env):
+    app,c,cid,url=env
+    first=complete(app.state.lifecycle,create(app.state.lifecycle))
+    second=complete(app.state.lifecycle,create(app.state.lifecycle))
+    queried=c.post(url+'/query',json={}).json()
+    result_ids={item['applicationId'] for item in queried['documents']}
+    response=c.post(url+'/detail',json={'reference':second['applicationId']})
+    assert response.status_code==200
+    body=response.json()
+    assert body['selectedDocument']['applicationId']==second['applicationId']
+    assert {item['applicationId'] for item in body['documents']}==result_ids
+    assert first['applicationId'] in result_ids
+
 def test_employee_cannot_approve_or_withdraw_s003(env):
     app,c,cid,url=env; a=approval(app.state.lifecycle,create(app.state.lifecycle),'start')
     for action in ['complete','return','withdraw']:
