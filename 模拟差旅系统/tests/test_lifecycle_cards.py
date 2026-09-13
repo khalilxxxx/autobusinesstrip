@@ -40,16 +40,15 @@ def test_semantic_withdraw_requires_second_confirmation_and_rejects_stale_versio
 
 def test_semantic_void_reason_is_retained_but_not_required(env):
     app,c,cid,url=env; a=complete(app.state.lifecycle,create(app.state.lifecycle))
+    turn(env,'查看'+a['applicationNo'],dict(intent='DETAIL',reference=a['applicationId']))
     first=turn(env,'作废这张，原因：客户取消会议，不需要出差',dict(intent='VOID',reference=a['applicationId']))
-    assert '确认作废' in first['reply']
-    assert app.state.lifecycle.document(a['applicationId'])['status']=='S004'
-    assert c.get(url).json()['pendingAction']['reason']=='客户取消会议，不需要出差'
-    result=turn(env,'确认作废',dict(intent='CONFIRM'))
-    assert 'S100' in result['reply']
+    assert '已作废' in first['reply']
+    assert app.state.lifecycle.document(a['applicationId'])['status']=='S100'
+    assert c.get(url).json()['pendingAction'] is None
     assert app.state.lifecycle.document(a['applicationId'])['history'][-1]['reason']=='客户取消会议，不需要出差'
     b=complete(app.state.lifecycle,create(app.state.lifecycle))
+    turn(env,'查看'+b['applicationNo'],dict(intent='DETAIL',reference=b['applicationId']))
     turn(env,'作废这张',dict(intent='VOID',reference=b['applicationId']))
-    turn(env,'确认作废',dict(intent='HELP'))
     assert app.state.lifecycle.document(b['applicationId'])['status']=='S100'
 
 
@@ -87,7 +86,7 @@ def test_card_action_proposal_is_read_only_and_semantic_confirmation_uses_reason
 def test_reason_suffix_cannot_hide_a_request_to_hold_the_operation(env,query):
     app,c,cid,url=env; service=app.state.lifecycle
     doc=complete(service,create(service))
-    turn(env,'作废这张',dict(intent='VOID',reference=doc['applicationId']))
+    c.post(url+'/propose-action',json=dict(reference=doc['applicationId'],action='void'))
     before=service.document(doc['applicationId'])
     result=turn(env,query,dict(intent='CONFIRM'))
     after=service.document(doc['applicationId'])
@@ -100,7 +99,7 @@ def test_reason_suffix_cannot_hide_a_request_to_hold_the_operation(env,query):
 def test_confirmation_reason_can_include_not_needing_a_trip(env):
     app,c,cid,url=env; service=app.state.lifecycle
     doc=complete(service,create(service))
-    turn(env,'作废这张',dict(intent='VOID',reference=doc['applicationId']))
+    c.post(url+'/propose-action',json=dict(reference=doc['applicationId'],action='void'))
     turn(env,'确认作废，原因：客户取消会议，不需要出差',dict(intent='HELP'))
     after=service.document(doc['applicationId'])
     assert after['status']=='S100'

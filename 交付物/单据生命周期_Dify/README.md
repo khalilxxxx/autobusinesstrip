@@ -9,7 +9,15 @@
 模拟差旅系统/.venv/bin/python -m unittest discover -s 交付物/单据生命周期_Dify/tests -v
 ```
 
-新版共 50 节点、85 条边。新增链路为：原开始节点 → LC_STATE（只读创建编辑标志）→ LC_CONTEXT → LC_ROUTER → LC_PACK → LC_VALID → LC_TURN → LC_UNPACK → LC_BRANCH。仅有效 `handled=false` 进入原 H01；`handled=true` 直接 LC_ANSWER 回复，不经过 N13，不写 `cv_session`。解析、HTTP、Code 异常均进入中文可恢复回复。所有 Code 节点不联网。
+新版共 55 节点、93 条边。新增链路为：原开始节点 → LC_STATE（只读创建编辑标志）→ LC_CONTEXT → LC_ROUTER → LC_PACK → LC_VALID → LC_TURN → LC_UNPACK → LC_BRANCH。仅有效 `handled=false` 经 LC_CREATE 明确新申请确认口令归一化后进入原 H01；`handled=true` 进入只读查询问答门控或直接回复，不经过 N13，不写 `cv_session`。所有 Code 节点不联网。
+
+## 只读查询问答
+
+查询成功可附加 `answerContext={question,businessDate,filters,total,shown,documents,cityNames}`。`documents` 为本轮展示的最多三张单据，保留单号、状态、效力及 `request.trips` 原始日期／城市编码／交通；`cityNames` 为编码到名称的映射。LC_UNPACK 校验计数、日期和明细结构，剔除 `locations/stay` 等预推理字段后，才输出 `answer_ready=true`。
+
+可靠上下文走 LC_QA_GATE → LC_QA（只读 LLM）→ LC_QA_RESULT → LC_QA_ANSWER。模型只根据本轮事实回答：普通查询一句总数和卡片提示；具体问题结合原始交通段区分停留日、移动日、已批准／未批准／作废。超过展示范围时明确总数及目前展示数量，不声称分析全部，也不把申报行程当作实际定位。
+
+没有可靠上下文时直接显示 LC_UNPACK.reply。问答 LLM 或结果 Code 失败、模型输出为空时也沿用这条已取得的回复；不重执行业务 HTTP，不进入创建链，不写会话变量。该分支与创建节点没有下游连线，模型重试关闭。
 
 ## 上下文和命令
 
@@ -35,11 +43,13 @@
 
 `user` 与请求号只由 `sys.user_id`、`sys.workflow_run_id` 打包。LLM 只输出允许的 `intent/reference/resultIndex/filter/patch`。唯一附加系统字段 `command.confirmation` 由 Code 从已读取 context 的 draft 原样注入，LLM 不得输出。服务端严格校验并核对当前草稿版本。用户同轮既编辑又确认时只保存新版，需再次确认。
 
+路由会从 CHANGE／RESUBMIT 首句提取明确 patch。已选或唯一单据的原明细为简单两段闭合往返时，“改成去北京”只修改去程目的城市和返程出发城市；其余字段保持。复杂行程或目标含糊时不猜修改范围，需澄清后编辑。核对以最新草稿内容及卡片为准。
+
 本地 cid 按 `assistant_conversations.dify_user` 映射；直接预览用独立 Dify 用户标识自动建立演示会话，仍仅固定演示员工 `DEMO_EMP_001`。command 无法切换员工或审批身份。不存在的 `demo-local-...`、已删除会话不能借此重新创建。
 
 ## 前端接口
 
-以下接口直接返回 `{documents,selectedDocument,draft,lastReceipt,querySummary}`，不包 `data`。生命周期业务 DTO 来自已有 `LifecycleService`。
+以下助手接口直接返回 `{documents,selectedDocument,draft,lastReceipt,querySummary,cardGroups,pendingAction}`，不包 `data`；表内 `/mock/v1/` 接口仍使用业务 `data` 包装。生命周期业务 DTO 来自已有 `LifecycleService`。
 
 | 接口 | 用途 |
 | --- | --- |
@@ -57,6 +67,8 @@
 
 查询结果只保存结果 ID，读取时总是投影当前可见内容；选中对象不因业务旧编号读取重定向而静默执行当前新单的撤回或作废。变更/重提只通过有版本确认的 draft 提交；不提供绕过草稿的直接变更 action。
 
+`cardGroups` 的 `kind` 区分 `query|document|draft|receipt`。`turnId` 指定消息展示位置，`interactionTurnId` 记录办理所属轮次；用户发起新一轮时旧组办理按钮立即禁用，刷新后继续保持只读，查看入口可用。草稿组携带当轮 `draft` 快照；原目标已替代或版本变化时不再展示失效快照。QUERY 缓存重放只读重查当前可见内容，不修改当前结果指代、选中对象或卡片组。
+
 ## 办理约束
 
 - 查询和详情不修改创建草稿或生命周期编辑草稿；新结果清除旧的列表指代，仍保留编辑目标。
@@ -69,4 +81,4 @@
 
 网关只新增上述 context/turn 两条固定路由；不开放本地生命周期管理、审批、种子、会话列表或任意转发。日志只记录方法、固定路径和状态码，不记录凭证、请求体或查询参数。
 
-此交付已完成本地自动验证；真实 Dify 模型解析、节点导入兼容性、sys.user_id 映射及浏览器交互仍需主任务通过新应用验证，不以本地测试代替线上验收。
+本轮已完成本地自动验证及真实 Dify、浏览器验收，独立新应用 `5a6513c5-507f-4525-ace6-d3e4e6d67964` 已发布第 4 版。普通查询只回复统计；停留日／移动日回答、当句城市变更、语义作废、历史按钮置灰及抽屉直接提交均已通过真实链路核对。原 Dify 应用保持不变。测试范围和实际单据状态见 [聚焦卡片与简洁对话验收](../../docs/superpowers/verification/2026-09-13-focused-travel-cards.md)。

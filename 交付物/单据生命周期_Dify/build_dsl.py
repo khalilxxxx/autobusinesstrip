@@ -57,12 +57,22 @@ def build():
         ('user',['sys','user_id'],'string'),('query',['sys','query'],'string'),('run_id',['sys','workflow_run_id'],'string')],['valid','body','reply'])
     branch('LC_VALID','命令有效性门控','LC_PACK','valid')
     http('LC_TURN','办理生命周期回合','/workflow/v1/lifecycle/turn','post',token('LC_PACK','body'))
-    code('LC_UNPACK','校验办理回复','unpack.py',[('api_body',selector('LC_TURN','body'),'string'),('status_code',selector('LC_TURN','status_code'),'number')],['handled','reply'])
+    code('LC_UNPACK','校验办理回复','unpack.py',[('api_body',selector('LC_TURN','body'),'string'),('status_code',selector('LC_TURN','status_code'),'number')],['handled','reply','answer_ready','answer_context'])
     branch('LC_BRANCH','生命周期与创建互斥分流','LC_UNPACK','handled')
     add('LC_ANSWER','answer','回复生命周期结果')['answer']=token('LC_UNPACK','reply')
     add('LC_INVALID','answer','回复解析澄清')['answer']=token('LC_PACK','reply')
     add('LC_ERROR','answer','可恢复异常回复')['answer']='本轮未能取得可靠结果，原草稿和请求号仍保留。请重新打开草稿核对；若已发送办理请求，继续同一草稿确认时会先查询原请求号回执，勿重新新建重复单据。'
     code('LC_CREATE','明确新申请确认口令归一化','creation_query.py',[('query',['sys','query'],'string'),('cv_session',['conversation','cv_session'],'string')],['query'])
+    branch('LC_QA_GATE','可靠查询明细门控','LC_UNPACK','answer_ready')
+    d=add('LC_QA','llm','只读查询问答')
+    d.update(model=copy.deepcopy(nodes['LC_ROUTER']['data']['model']),context={'enabled':False,'variable_selector':[]},vision={'enabled':False},
+        prompt_template=[{'id':'query-answer-system','role':'system','text':(ROOT/'prompts/query_answer.md').read_text()},
+            {'id':'query-answer-data','role':'user','text':token('LC_UNPACK','answer_context')}],
+        structured_output_enabled=False,reasoning_format='separated',error_strategy='fail-branch',
+        retry_config={'retry_enabled':False,'max_retries':0,'retry_interval':1000})
+    code('LC_QA_RESULT','问答空回复回退','query_answer.py',[
+        ('answer',selector('LC_QA','text'),'string'),('fallback',selector('LC_UNPACK','reply'),'string')],['reply'])
+    add('LC_QA_ANSWER','answer','回复只读问答')['answer']=token('LC_QA_RESULT','reply')
     def creation_input(value):
         if value==['sys','query']: return selector('LC_CREATE','query')
         if isinstance(value,str): return value.replace('{{#sys.query#}}',token('LC_CREATE','query'))
@@ -73,7 +83,9 @@ def build():
     graph['edges']=[e for e in graph['edges'] if not(e['source']==nodes['N01']['id'] and e['target']==nodes['H01']['id'])]
     for a,b,h in [('N01','LC_STATE','source'),('LC_STATE','LC_CONTEXT','source'),('LC_CONTEXT','LC_ROUTER','source'),('LC_ROUTER','LC_PACK','source'),('LC_PACK','LC_VALID','source'),
         ('LC_VALID','LC_TURN','true'),('LC_VALID','LC_INVALID','false'),('LC_TURN','LC_UNPACK','source'),('LC_UNPACK','LC_BRANCH','source'),
-        ('LC_BRANCH','LC_ANSWER','true'),('LC_BRANCH','LC_CREATE','false'),('LC_CREATE','H01','source')]: edge(a,b,h)
+        ('LC_BRANCH','LC_QA_GATE','true'),('LC_BRANCH','LC_CREATE','false'),('LC_CREATE','H01','source'),
+        ('LC_QA_GATE','LC_QA','true'),('LC_QA_GATE','LC_ANSWER','false'),('LC_QA','LC_QA_RESULT','source'),
+        ('LC_QA','LC_ANSWER','fail-branch'),('LC_QA_RESULT','LC_QA_ANSWER','source'),('LC_QA_RESULT','LC_ANSWER','fail-branch')]: edge(a,b,h)
     for name in ['LC_STATE','LC_CONTEXT','LC_ROUTER','LC_PACK','LC_TURN','LC_UNPACK','LC_CREATE']: edge(name,'LC_ERROR','fail-branch')
     graph['nodes']=list(nodes.values())
     doc['app'].update(name='差旅助手-单据生命周期-V2',description='独立 V2：保留创建会话，查询与单据生命周期编辑、确认、真实业务回执。')

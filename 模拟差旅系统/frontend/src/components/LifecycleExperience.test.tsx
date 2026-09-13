@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({
@@ -88,6 +88,110 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('语义单据卡片', () => {
+  it('历史轮次办理入口置灰，详情和系统查看仍可用，最新轮次只使用接口资格', async () => {
+    const old = document();
+    const current = document({ applicationId: 'APP-2', applicationNo: 'DEMO-CL-002', status: 'S003' });
+    api.lifecycle.mockResolvedValue({ ...state([current]), cardGroups: [
+      { id: 'g1', kind: 'query', turnId: 't1', title: '第一轮查询', documents: [old], total: 1 },
+      { id: 'g2', kind: 'query', turnId: 't2', title: '第二轮查询', documents: [current], total: 1 },
+    ] });
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t2">
+      <LifecycleCards turnId="t1" /><LifecycleCards turnId="t2" />
+    </DocumentPanel>);
+    const oldCard = await view.findByRole('article', { name: '差旅单据 DEMO-CL-001' });
+    const currentCard = view.getByRole('article', { name: '差旅单据 DEMO-CL-002' });
+    expect(within(oldCard).getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(true);
+    expect(within(oldCard).getByRole('button', { name: '作废当前有效单据' }).hasAttribute('disabled')).toBe(true);
+    expect(within(oldCard).getByRole('button', { name: '查看系统单据' }).hasAttribute('disabled')).toBe(false);
+    fireEvent.click(within(oldCard).getByText('查看详情'));
+    expect(oldCard.querySelector('details')?.open).toBe(true);
+    expect(within(currentCard).getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(false);
+    expect(within(currentCard).queryByRole('button', { name: '撤回本次提交' })).toBeNull();
+  });
+
+  it('多单据只展示前三张简卡和连续路线，查看全部为演示入口', async () => {
+    const first = document();
+    const docs = Array.from({ length: 4 }, (_, index) => document({ applicationId: `APP-${index + 1}`, applicationNo: `DEMO-${index + 1}`,
+      request: { ...first.request, trips: [
+        { ...first.request.trips[0], cityTo: 'BJ' },
+        { ...first.request.trips[0], cityFrom: 'BJ', cityTo: 'HZ', dateFrom: '2026-11-25', dateTo: '2026-11-25' },
+      ] } }));
+    api.lifecycle.mockResolvedValue({ ...state(docs), cardGroups: [
+      { id: 'query', kind: 'query', turnId: null, interactionTurnId: 't1', title: '查询结果', documents: docs, total: 8 },
+    ] });
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t1" />);
+    await view.findByRole('article', { name: '差旅单据 DEMO-1' });
+    await waitFor(() => expect(view.getAllByText('杭州-北京-杭州')).toHaveLength(3));
+    expect(view.getAllByRole('article')).toHaveLength(3);
+    expect(view.queryByRole('article', { name: '差旅单据 DEMO-4' })).toBeNull();
+    const all = view.getByRole('button', { name: '查看全部查询结果' });
+    fireEvent.click(all);
+    expect(api.lifecycleQuery).not.toHaveBeenCalled();
+    expect(view.getAllByRole('article')).toHaveLength(3);
+    view.rerender(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t2" />);
+    expect(view.getByRole('button', { name: '查看全部查询结果' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('null 轮次的本地卡片在局部操作后可继续办理，新消息到来后保持置灰', async () => {
+    const doc = document();
+    const current: LifecycleState = { ...state([doc]), cardGroups: [
+      { id: 'local-card', turnId: null, interactionTurnId: 't1', title: '本地单据', documents: [doc], total: 1 },
+    ] };
+    api.lifecycle.mockResolvedValue(current);
+    api.lifecycleCancelAction.mockResolvedValue(current);
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t1" />);
+    fireEvent.click(await view.findByRole('button', { name: '作废当前有效单据' }));
+    fireEvent.click(await view.findByRole('button', { name: '取消' }));
+    await waitFor(() => expect(view.queryByRole('alertdialog')).toBeNull());
+    expect(view.getByRole('button', { name: '作废当前有效单据' }).hasAttribute('disabled')).toBe(false);
+    view.rerender(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="pending-new" busy />);
+    expect(view.getByRole('button', { name: '作废当前有效单据' }).hasAttribute('disabled')).toBe(true);
+    view.rerender(<DocumentPanel conversationId="CID" refreshToken={1} latestTurnId="t2" />);
+    await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
+    expect(view.getByRole('button', { name: '作废当前有效单据' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('重新载入后依服务端 interactionTurnId 禁用历史临时卡，旧数据无归属时只读', async () => {
+    const docs = Array.from({ length: 3 }, (_, index) => document({ applicationId: `APP-${index}`, applicationNo: `恢复卡片-${index}` }));
+    api.lifecycle.mockResolvedValue({ ...state(docs), cardGroups: [
+      { id: 'older-ui', turnId: null, interactionTurnId: 't1', title: '较早的临时卡片', documents: [docs[0]], total: 1 },
+      { id: 'latest-ui', turnId: null, interactionTurnId: 't2', title: '本轮临时卡片', documents: [docs[1]], total: 1 },
+      { id: 'legacy-ui', turnId: null, title: '旧版临时卡片', documents: [docs[2]], total: 1 },
+    ] });
+    const first = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t2" />);
+    await first.findByRole('article', { name: '差旅单据 恢复卡片-1' });
+    first.unmount();
+    const restored = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t2" />);
+    const oldCard = await restored.findByRole('article', { name: '差旅单据 恢复卡片-0' });
+    expect(within(oldCard).getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(true);
+    const currentCard = restored.getByRole('article', { name: '差旅单据 恢复卡片-1' });
+    expect(within(currentCard).getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(false);
+    const legacyCard = restored.getByRole('article', { name: '差旅单据 恢复卡片-2' });
+    expect(within(legacyCard).getByRole('button', { name: '发起行程变更' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('草稿组显示 payload 新安排，历史快照只读且当前草稿仍能继续编辑', async () => {
+    const target = document();
+    const oldDraft = { ...draft(target), payload: { ...target.request, remark: '第一轮新安排' } };
+    const currentDraft = { ...oldDraft, revision: 2, fingerprint: 'fingerprint-2', payload: { ...oldDraft.payload, remark: '第二轮新安排',
+      trips: [{ ...target.request.trips[0], cityTo: 'BJ' }] } };
+    api.lifecycle.mockResolvedValue({ ...state([target]), draft: currentDraft, cardGroups: [
+      { id: 'draft-old', kind: 'draft', turnId: 't1', title: '变更草稿', documents: [target], total: null, draft: oldDraft },
+      { id: 'draft-new', kind: 'draft', turnId: 't2', title: '变更草稿', documents: [target], total: null, draft: currentDraft },
+    ] });
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t2">
+      <div data-testid="old"><LifecycleCards turnId="t1" /></div><div data-testid="new"><LifecycleCards turnId="t2" /></div>
+    </DocumentPanel>);
+    const current = view.getByTestId('new');
+    await within(current).findByText('第二轮新安排');
+    expect(within(current).queryByText('客户拜访')).toBeNull();
+    await within(current).findByText('北京');
+    expect(within(view.getByTestId('old')).getByText('第一轮新安排')).not.toBeNull();
+    for (const button of within(view.getByTestId('old')).getAllByRole('button')) expect(button.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(within(current).getByRole('button', { name: '编辑变更' }));
+    expect((await view.findByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('第二轮新安排');
+  });
+
   it('连续两轮查询的卡片各自展示在对应回复位置', async () => {
     const first = document(); const second = document({ applicationId: 'APP-2', applicationNo: 'DEMO-CL-002', request: { ...first.request, remark: '项目驻场' } });
     api.lifecycle.mockResolvedValue({ ...state([second]), cardGroups: [
@@ -176,7 +280,7 @@ describe('员工单据卡片办理', () => {
     expect(view.queryByText(/旧版|恢复旧单/)).toBeNull();
   });
 
-  it('编辑部门公司、日期并增段，保存后展示差异和完整新安排，再用最新 revision 与 fingerprint 提交', async () => {
+  it('编辑部门公司、日期并增段后直接提交，先保存当前输入再用返回版本提交', async () => {
     const current = document(); const prepared = { ...state([current]), selectedDocument: current, draft: draft(current) };
     const savedDraft = { ...draft(current), revision: 2, fingerprint: 'fingerprint-2',
       payload: { ...current.request, departmentId: 'D2', payerCompanyId: 'C2', remark: '延期拜访', trips: [
@@ -206,14 +310,12 @@ describe('员工单据卡片办理', () => {
     fireEvent.change(view.getByLabelText('第 2 段到达城市'), { target: { value: 'BJ' } });
     fireEvent.change(view.getByLabelText('第 2 段出发日期'), { target: { value: '2026-11-23' } });
     fireEvent.change(view.getByLabelText('第 2 段到达日期'), { target: { value: '2026-11-23' } });
-    fireEvent.click(view.getByRole('button', { name: '保存并查看差异' }));
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
 
     await waitFor(() => expect(api.lifecycleSave).toHaveBeenCalledWith('CID', expect.objectContaining({
       draftId: 'draft-1', revision: 1, payload: expect.objectContaining({ departmentId: 'D2', payerCompanyId: 'C2' }),
     })));
-    expect(await view.findByText('业务部 → 研发部')).not.toBeNull();
-    expect(view.getByText((_, item) => item?.tagName === 'STRONG' && item.textContent?.replace(/\s+/g, '') === '上海北京')).not.toBeNull();
-    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    expect(api.lifecycleSave.mock.calls[0][1].payload).toEqual(savedDraft.payload);
     await waitFor(() => expect(api.lifecycleSubmit).toHaveBeenCalledWith('CID', expect.objectContaining({
       draftId: 'draft-1', revision: 2, fingerprint: 'fingerprint-2', clientRequestId: expect.any(String),
     })));
@@ -233,7 +335,62 @@ describe('员工单据卡片办理', () => {
     await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
     expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('尚未保存的本地说明');
     expect(view.getByText(/原目标已变化/)).not.toBeNull();
-    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(true);
+    expect(view.getByRole('button', { name: '保存草稿' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('直接提交会先校验本地输入，保存冲突时不会提交且仍保留编辑', async () => {
+    const target = document();
+    const initial = { ...state([target]), draft: draft(target) };
+    api.lifecycle.mockResolvedValue(initial);
+    api.lifecycleSave.mockRejectedValue(new ApiError('草稿已变化', 409, 'CONFIRMATION_STALE'));
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '' } });
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    expect(await view.findByText('请填写出差事由。')).not.toBeNull();
+    expect(api.lifecycleSave).not.toHaveBeenCalled();
+    expect(api.lifecycleSubmit).not.toHaveBeenCalled();
+
+    fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '仍需保留的输入' } });
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    await waitFor(() => expect(api.lifecycleSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
+    expect(api.lifecycleSubmit).not.toHaveBeenCalled();
+    expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('仍需保留的输入');
+    expect(localStorage.getItem('travelLifecyclePendingOperation')).toBeNull();
+  });
+
+  it('直接提交在保存期间进入新对话轮次时停止后续正式提交', async () => {
+    const target = document();
+    const initial = { ...state([target]), draft: draft(target) };
+    const saved = deferred<LifecycleState>();
+    api.lifecycle.mockResolvedValue(initial);
+    api.lifecycleSave.mockReturnValue(saved.promise);
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="t1" />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '等待保存的修改' } });
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    await waitFor(() => expect(api.lifecycleSave).toHaveBeenCalledTimes(1));
+    view.rerender(<DocumentPanel conversationId="CID" refreshToken={0} latestTurnId="pending-next" busy />);
+    await act(async () => saved.resolve({ ...initial, draft: { ...initial.draft!, revision: 2, fingerprint: 'fp2', payload: { ...initial.draft!.payload, remark: '等待保存的修改' } } }));
+    expect(api.lifecycleSubmit).not.toHaveBeenCalled();
+    expect(localStorage.getItem('travelLifecyclePendingOperation')).toBeNull();
+  });
+
+  it('保存未返回所编辑的新版本时保留输入，不把旧草稿当作本次提交', async () => {
+    const target = document();
+    const initial = { ...state([target]), draft: draft(target) };
+    api.lifecycle.mockResolvedValue(initial);
+    api.lifecycleSave.mockResolvedValue(initial);
+    const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
+    fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
+    fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '这次需要提交的新事由' } });
+    fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
+    await waitFor(() => expect(api.lifecycleSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(view.getByRole('button', { name: '保存草稿' }).hasAttribute('disabled')).toBe(false));
+    expect(api.lifecycleSubmit).not.toHaveBeenCalled();
+    expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('这次需要提交的新事由');
+    expect(localStorage.getItem('travelLifecyclePendingOperation')).toBeNull();
   });
 
   it('网络未知结果持久化原请求号，继续办理先查回执再沿用同号同步', async () => {
@@ -269,10 +426,10 @@ describe('员工单据卡片办理', () => {
     const view = render(<DocumentPanel conversationId="CID" refreshToken={0} />);
     fireEvent.click(await view.findByRole('button', { name: '继续编辑变更' }));
     fireEvent.change(view.getByLabelText('出差事由'), { target: { value: '保留这次修改' } });
-    fireEvent.click(view.getByRole('button', { name: '保存并查看差异' }));
+    fireEvent.click(view.getByRole('button', { name: '保存草稿' }));
 
     await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(false));
+    await waitFor(() => expect(view.getByRole('button', { name: '保存草稿' }).hasAttribute('disabled')).toBe(false));
   });
 
   it('切换到新会话时立即移除旧会话单据并等待新状态', async () => {
@@ -289,7 +446,7 @@ describe('员工单据卡片办理', () => {
     expect(view.queryByRole('button', { name: '作废当前有效单据' })).toBeNull();
   });
 
-  it('未知提交结果锁定编辑器中的保存、提交和放弃入口', async () => {
+  it('未知提交结果锁定编辑器内容和写入入口，取消只收起并保留恢复请求', async () => {
     const target = document();
     api.lifecycle.mockResolvedValue({ ...state([target]), selectedDocument: target, draft: draft(target) });
     api.lifecycleSubmit.mockRejectedValue(new ApiError('断网', 0, 'NETWORK_ERROR'));
@@ -299,9 +456,12 @@ describe('员工单据卡片办理', () => {
     fireEvent.click(view.getByRole('button', { name: '确认提交变更' }));
     expect(await view.findByText(/结果待核对/)).not.toBeNull();
 
-    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(true);
+    expect(view.getByRole('button', { name: '保存草稿' }).hasAttribute('disabled')).toBe(true);
     expect(view.getByRole('button', { name: '确认提交变更' }).hasAttribute('disabled')).toBe(true);
-    expect(view.getByRole('button', { name: '放弃本次编辑' }).hasAttribute('disabled')).toBe(true);
+    expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).disabled).toBe(true);
+    fireEvent.click(view.getByRole('button', { name: '取消' }));
+    expect(view.queryByRole('dialog')).toBeNull();
+    expect(api.lifecycleCancelDraft).not.toHaveBeenCalled();
   });
 
   it('不同会话分别保留未知操作，后一会话不会覆盖前一会话请求号', async () => {
@@ -390,7 +550,6 @@ describe('员工单据卡片办理', () => {
 
     await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
     fireEvent.click(view.getByRole('button', { name: '继续编辑变更' }));
-    await view.findByText('客户拜访 → 自然语言新说明');
     expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('自然语言新说明');
   });
 
@@ -408,12 +567,12 @@ describe('员工单据卡片办理', () => {
     await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
     expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('本地未保存说明');
     expect(await view.findByText(/草稿已更新到 revision 2/)).not.toBeNull();
-    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(true);
+    expect(view.getByRole('button', { name: '保存草稿' }).hasAttribute('disabled')).toBe(true);
     expect(view.getByRole('button', { name: '确认提交变更' }).hasAttribute('disabled')).toBe(true);
     fireEvent.click(view.getByRole('button', { name: '使用最新草稿内容' }));
     expect((view.getByLabelText('出差事由') as HTMLTextAreaElement).value).toBe('自然语言新说明');
     expect(view.queryByText(/草稿已更新到 revision 2/)).toBeNull();
-    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(false);
+    expect(view.getByRole('button', { name: '保存草稿' }).hasAttribute('disabled')).toBe(false);
   });
 
   it('失败回执恢复会先同步助手请求终态再清除本地 pending', async () => {
@@ -437,7 +596,7 @@ describe('员工单据卡片办理', () => {
     await waitFor(() => expect(api.lifecycle).toHaveBeenCalledTimes(2));
     expect(localStorage.getItem('travelLifecyclePendingOperation')).toBeNull();
     expect(view.queryByRole('button', { name: '查询办理结果' })).toBeNull();
-    expect(view.getByRole('button', { name: '保存并查看差异' }).hasAttribute('disabled')).toBe(false);
+    expect(view.getByRole('button', { name: '保存草稿' }).hasAttribute('disabled')).toBe(false);
   });
 
   it('浏览器无记录时会从服务端 UNKNOWN 恢复原请求入口', async () => {

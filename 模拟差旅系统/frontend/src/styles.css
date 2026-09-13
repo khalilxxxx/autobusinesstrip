@@ -101,23 +101,21 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .travel-document-group { margin: 15px 0 6px; width: 100%; }
 .travel-document-group-heading { display: flex; align-items: center; gap: 8px; margin: 0 0 9px; color: #83768f; font-size: 11px; }
 .travel-document-group-heading span { padding: 2px 7px; border-radius: 20px; background: #eee8f8; color: #7560a5; }
-.travel-document-card { overflow: hidden; margin-bottom: 12px; border: 1px solid #e4ddec; border-radius: 14px; background: white; box-shadow: 0 5px 16px rgba(65, 45, 95, .04); }
-.travel-document-card > header { display: flex; gap: 10px; align-items: center; padding: 15px 16px; border-bottom: 1px solid #f0ebf5; background: #fcfaff; }
-.travel-document-icon { flex: 0 0 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: #8164c3; background: #f0eafa; }
-.travel-document-card header > div { min-width: 0; flex: 1; }
-.travel-document-card header small { display: block; color: #9685a9; font-size: 10px; }
-.travel-document-card header strong { display: block; margin-top: 3px; color: #514360; font-size: 12px; overflow-wrap: anywhere; }
+.travel-document-card { margin-bottom: 12px; }
+.travel-document-card .draft-card-heading > div { min-width: 0; }
+.travel-document-card .draft-card-heading small { overflow-wrap: anywhere; }
+.travel-document-card.compact .draft-card-heading { padding-top: 12px; padding-bottom: 12px; }
 .travel-document-status { flex-shrink: 0; padding: 5px 8px; border-radius: 6px; color: #79609b; background: #eee7f6; font-size: 10px; }
 .travel-document-status.status-S004 { color: #287b5a; background: #e8f6ee; }
 .travel-document-status.status-S100 { color: #927e89; background: #f2ebee; }
-.travel-document-body { padding: 13px 16px; }
-.travel-document-date { display: flex; gap: 6px; align-items: center; color: #8b7e9b; font-size: 11px; }
-.travel-document-reason { margin: 10px 0 8px; color: #534661; font-size: 13px; font-weight: 600; }
-.travel-document-route { display: flex; flex-wrap: wrap; gap: 6px 14px; color: #776387; font-size: 11px; }
-.travel-document-route > span { display: inline-flex; align-items: center; gap: 5px; }
+.travel-document-date { display: flex; gap: 6px; align-items: center; margin: 12px 16px 0; color: #8b7e9b; font-size: 11px; }
+.travel-document-route { margin: 10px 16px 13px; color: #625375; font-size: 13px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.travel-document-details { margin: 0 16px 12px; }
+.travel-document-details > .draft-overview { padding-left: 0; padding-right: 0; }
+.travel-document-details > .draft-trips { padding-left: 0; padding-right: 0; }
 .travel-document-card summary { cursor: pointer; color: #8b789c; font-size: 11px; }
 .travel-document-card footer { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 15px; border-top: 1px solid #f0ebf5; }
-.travel-document-card footer button, .lifecycle-controls > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 10px; min-height: 32px; border: 1px solid #e1d7ee; border-radius: 8px; color: #7c62a6; background: #fcfaff; font-size: 11px; cursor: pointer; }
+.travel-document-card footer button, .lifecycle-controls > button, .query-all-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 10px; min-height: 32px; border: 1px solid #e1d7ee; border-radius: 8px; color: #7c62a6; background: #fcfaff; font-size: 11px; cursor: pointer; }
 .travel-document-card footer .system-document-button { margin-right: auto; color: #7e728e; background: white; }
 .travel-document-card footer button.danger { color: #ae596b; border-color: #eed2da; background: #fff8fa; }
 .travel-document-card footer button:disabled { opacity: .45; cursor: not-allowed; }
@@ -209,6 +207,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .draft-actions { display: flex; justify-content: flex-end; gap: 7px; padding: 11px 14px; border-top: 1px solid #eeebf7; background: rgba(248, 246, 255, .72); }
 .draft-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 7px 10px; border: 1px solid #ded8f1; border-radius: 9px; color: #605875; background: white; cursor: pointer; font-size: 10.5px; font-weight: 650; }
 .draft-actions button.primary { border-color: #705ed9; color: white; background: #705ed9; }
+.draft-actions button:disabled, .travel-document-card footer button:disabled { color: #a29baa; border-color: #e4e0e8; background: #f1eff4; opacity: 1; cursor: not-allowed; }
 .draft-failure-note { display: flex; align-items: flex-start; gap: 8px; margin: 0 16px 15px; padding: 10px 11px; border-radius: 10px; color: #984552; background: #fff0f2; font-size: 10.5px; line-height: 1.55; }
 .draft-failure-note svg { flex: 0 0 16px; margin-top: 1px; }
 .draft-failure-note strong { display: block; }
@@ -334,17 +333,15 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .document-draft-banner button { border: 0; border-radius: 7px; padding: 6px 9px; color: white; background: #6d59d7; cursor: pointer; font-size: 9.5px; }
 
 .lifecycle-editor-layer { position: fixed; z-index: 90; inset: 0; display: flex; justify-content: flex-end; }
-.lifecycle-editor { position: relative; width: min(720px, calc(100% - 46px)); height: 100%; display: flex; flex-direction: column; color: #3f3a4b; background: #f9f8fc; box-shadow: -18px 0 50px rgba(35,27,75,.2); }
+.lifecycle-editor { position: relative; width: min(640px, calc(100% - 46px)); height: 100%; display: flex; flex-direction: column; color: #3f3a4b; background: #f9f8fc; box-shadow: -18px 0 50px rgba(35,27,75,.2); }
 .lifecycle-warning { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; padding: 10px; border-radius: 9px; color: #98602f; background: #fff5e3; font-size: 10px; line-height: 1.5; }
 .lifecycle-warning svg { width: 16px; flex: 0 0 16px; }
 .lifecycle-warning strong { display: block; }
-.lifecycle-differences > p, .lifecycle-arrangement > p { color: #96909e; font-size: 10px; line-height: 1.5; }
-.lifecycle-differences > div { display: grid; grid-template-columns: 90px 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eeeaf2; font-size: 10px; }
-.lifecycle-differences > div strong { color: #60576b; }
-.lifecycle-differences > div span { color: #777080; line-height: 1.55; }
-.lifecycle-editor-footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid #e5e1eb; background: white; }
+.lifecycle-fields { margin-top: 14px; }
+.lifecycle-warning button { flex-shrink: 0; padding: 5px 7px; border: 1px solid #e6cc9f; border-radius: 7px; color: #98602f; background: #fffbf4; font: inherit; cursor: pointer; }
+.lifecycle-editor-footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid #e5e1eb; background: white; }
 .lifecycle-editor-footer span { margin-right: auto; color: #9690a0; font-size: 9.5px; }
-.lifecycle-editor-footer button { min-height: 35px; padding: 7px 10px; border: 1px solid #ded9e8; border-radius: 8px; color: #635a72; background: white; cursor: pointer; font-size: 10px; font-weight: 650; }
+.lifecycle-editor-footer button { min-height: 39px; padding: 8px 12px; border: 1px solid #ded9e8; border-radius: 10px; color: #635a72; background: white; cursor: pointer; font-size: 11px; font-weight: 650; }
 .lifecycle-editor-footer button.primary { color: white; border-color: #6d59d7; background: #6d59d7; }
 .lifecycle-editor-footer button.text-danger { color: #a34451; border: 0; background: transparent; }
 .lifecycle-editor-footer button:disabled { opacity: .5; cursor: not-allowed; }

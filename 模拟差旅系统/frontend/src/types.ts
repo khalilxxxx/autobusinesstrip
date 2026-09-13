@@ -238,7 +238,8 @@ export interface LifecycleState {
   draft: LifecycleDraft | null;
   lastReceipt: LifecycleReceipt | null;
   querySummary: { filters: LifecycleQueryFilters; total: number; limit: number; offset: number } | null;
-  cardGroups?: { id: string; turnId: string | null; title: string; documents: LifecycleDocument[]; total: number | null }[];
+  cardGroups?: { id: string; turnId: string | null; title: string; documents: LifecycleDocument[]; total: number | null;
+    interactionTurnId?: string | null; kind?: 'query' | 'document' | 'draft' | 'receipt'; draft?: LifecycleDraft | null }[];
   pendingAction?: LifecyclePendingAction | null;
 }
 

@@ -90,7 +90,8 @@ describe('差旅草稿卡片', () => {
 
     const oldCard = await view.findByLabelText('差旅申请草稿（历史版本）');
     const currentCard = await view.findByLabelText('差旅申请草稿（当前版本）');
-    expect(within(oldCard).queryByRole('button')).toBeNull();
+    expect(within(oldCard).getByRole('button', { name: '编辑申请' }).hasAttribute('disabled')).toBe(true);
+    expect(within(oldCard).getByRole('button', { name: '提交单据' }).hasAttribute('disabled')).toBe(true);
     expect(within(oldCard).getByText('历史版本')).not.toBeNull();
     expect(within(currentCard).getByText('普通演示员工')).not.toBeNull();
     expect(within(currentCard).getByText('普通差旅')).not.toBeNull();
@@ -102,6 +103,29 @@ describe('差旅草稿卡片', () => {
     expect(within(currentCard).getByRole('button', { name: '提交单据' })).not.toBeNull();
     expect(view.getAllByText(/你可以直接回复补充或修改信息/)).toHaveLength(1);
     expect(currentCard.closest('article')?.querySelector('.message-bubble')?.textContent).toContain('点击“编辑申请”填写表单');
+  });
+
+  it('发送新消息立即锁定创建卡片，下一轮没有新草稿时旧卡仍只读', async () => {
+    const original = detail();
+    let finishTurn!: (value: unknown) => void;
+    api.turn.mockImplementation(() => new Promise((resolve) => { finishTurn = resolve; }));
+    api.sendMessage.mockResolvedValue({ turnId: 'next-turn', status: 'running' });
+    api.conversation.mockResolvedValueOnce(original).mockResolvedValue({ ...original,
+      updatedAt: '2026-09-12T09:10:00+08:00', messages: [...original.messages,
+        { id: 'm-question', turnId: 'next-turn', role: 'user', content: '查一下下一次出差', createdAt: original.updatedAt, status: 'succeeded' },
+        { id: 'm-answer', turnId: 'next-turn', role: 'assistant', content: '已查询单据。', createdAt: original.updatedAt, status: 'succeeded' },
+      ],
+    });
+    const view = render(<AssistantPage />);
+    const card = await view.findByLabelText('差旅申请草稿（当前版本）');
+    fireEvent.change(view.getByLabelText('发送给小智的消息'), { target: { value: '查一下下一次出差' } });
+    fireEvent.click(view.getByRole('button', { name: '发送消息' }));
+    expect(within(card).getByRole('button', { name: '编辑申请' }).hasAttribute('disabled')).toBe(true);
+    await waitFor(() => expect(api.turn).toHaveBeenCalled());
+    finishTurn({ id: 'next-turn', conversationId: 'A', status: 'succeeded', answer: '已查询单据。', error: null });
+    await view.findByText('已查询单据。');
+    for (const edit of view.getAllByRole('button', { name: '编辑申请' })) expect(edit.hasAttribute('disabled')).toBe(true);
+    for (const submit of view.getAllByRole('button', { name: '提交单据' })) expect(submit.hasAttribute('disabled')).toBe(true);
   });
 
   it('不完整草稿通过回复文字引导补充或编辑，但不能提交', async () => {

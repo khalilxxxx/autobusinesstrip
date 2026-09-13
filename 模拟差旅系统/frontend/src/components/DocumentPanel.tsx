@@ -7,6 +7,7 @@ import type { ApiIssue, LifecycleDocument, LifecycleOptions, LifecyclePendingAct
 import { errorMessage } from '../utils';
 import { LifecycleEditor } from './LifecycleEditor';
 import { TravelDocumentCard } from './TravelDocumentCard';
+import { LifecycleDraftCard } from './LifecycleDraftCard';
 import { DocumentActionDialog } from './DocumentActionDialog';
 
 const PENDING_KEY = 'travelLifecyclePendingOperation';
@@ -59,9 +60,9 @@ const LifecycleContext = createContext<LifecycleContextValue | null>(null);
 export function LifecycleCards({ turnId }: { turnId?: string }) { return useContext(LifecycleContext)?.renderCards(turnId) || null; }
 export function LifecycleControls() { return useContext(LifecycleContext)?.controls || null; }
 
-type DocumentPanelProps = { conversationId: string | null; refreshToken: unknown; children?: ReactNode; busy?: boolean; onSemantic?: (text: string) => void };
+type DocumentPanelProps = { conversationId: string | null; refreshToken: unknown; children?: ReactNode; busy?: boolean; latestTurnId?: string | null };
 
-function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSemantic, publish }: DocumentPanelProps & { publish: (value: LifecycleContextValue) => void }) {
+function DocumentPanelSession({ conversationId, refreshToken, busy = false, latestTurnId, publish }: DocumentPanelProps & { publish: (value: LifecycleContextValue) => void }) {
   const [proposal, setProposal] = useState<LifecyclePendingAction | null>(null);
   const [state, setState] = useState<LifecycleState>(emptyState);
   const [options, setOptions] = useState<LifecycleOptions | null>(null);
@@ -76,6 +77,10 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSe
   const requestRef = useRef(0);
   const loadingOwnerRef = useRef(0);
   const optionsRequestRef = useRef(0);
+  const latestTurnRef = useRef(latestTurnId);
+  latestTurnRef.current = latestTurnId;
+  const localCardTurnsRef = useRef(new Map<string, string | null>());
+  const submittingDraftRef = useRef(false);
 
   const beginLoading = () => {
     const owner = ++loadingOwnerRef.current;
@@ -87,7 +92,12 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSe
     if (owner === loadingOwnerRef.current) setLoading(false);
   };
 
-  const applyState = useCallback((next: LifecycleState) => {
+  const applyState = useCallback((next: LifecycleState, turnId = latestTurnRef.current) => {
+    const owner = turnId === undefined ? next.cardGroups?.at(-1)?.turnId || null : turnId;
+    const groups = next.cardGroups?.length ? next.cardGroups : [{ id: 'current', turnId: null }, { id: 'current-draft', turnId: null }];
+    for (const group of groups) {
+      if (group.turnId === null && !localCardTurnsRef.current.has(group.id)) localCardTurnsRef.current.set(group.id, owner);
+    }
     setState(next);
   }, []);
 
@@ -105,10 +115,11 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSe
 
   const refresh = useCallback(async (id: string) => {
     const request = ++requestRef.current;
+    const turnId = latestTurnRef.current;
     try {
       const next = await assistantApi.lifecycle(id);
       if (request === requestRef.current) {
-        applyState(next);
+        applyState(next, turnId);
         restoreServerPending(id, next);
         return next;
       }
@@ -144,12 +155,13 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSe
 
   const run = async (operation: () => Promise<LifecycleState>, preserveEditor = true) => {
     const request = ++requestRef.current;
+    const turnId = latestTurnRef.current;
     const loadingOwner = beginLoading();
     setError(''); setNotice(''); setIssues([]);
     try {
       const result = await operation();
       if (request !== requestRef.current) return result;
-      applyState(result);
+      applyState(result, turnId);
       if (!preserveEditor) setEditing(false);
       return result;
     } catch (reason) {
@@ -165,7 +177,7 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSe
   };
 
   async function prepare(doc: LifecycleDocument, mode: 'change' | 'resubmit') {
-    if (!conversationId || pending) return;
+    if (!conversationId || pending || loading || busy) return;
     try { await run(() => assistantApi.lifecyclePrepare(conversationId, { reference: doc.applicationId, mode })); setEditing(true); }
     catch { /* shown above */ }
   }
@@ -287,26 +299,56 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSe
   }
 
   async function saveDraft(payload: TravelApplication['request']) {
-    if (!conversationId || !state.draft || pending) return;
+    if (!conversationId || !state.draft || pending || loading || busy) return;
     try { await run(() => assistantApi.lifecycleSave(conversationId, { draftId: state.draft!.id, revision: state.draft!.revision, payload })); }
     catch { /* issues and fresh eligibility already loaded */ }
   }
 
-  async function submitDraft() {
-    if (!conversationId || !state.draft || pending) return;
-    const operation: PendingOperation = { conversationId, kind: 'submit', body: {
-      draftId: state.draft.id, revision: state.draft.revision, fingerprint: state.draft.fingerprint, clientRequestId: crypto.randomUUID(),
-    } };
-    remember(operation); const loadingOwner = beginLoading(); setError('');
-    try { await performPending(operation); }
+  async function submitDraft(payload: TravelApplication['request']) {
+    if (!conversationId || !state.draft || pending || loading || busy || submittingDraftRef.current) return;
+    submittingDraftRef.current = true;
+    const source = state.draft;
+    const request = ++requestRef.current;
+    const turnId = latestTurnRef.current;
+    const loadingOwner = beginLoading();
+    let operation: PendingOperation | null = null;
+    setError(''); setNotice(''); setIssues([]);
+    try {
+      let current = source;
+      if (JSON.stringify(payload) !== JSON.stringify(source.payload)) {
+        const saved = await assistantApi.lifecycleSave(conversationId, { draftId: source.id, revision: source.revision, payload });
+        if (request !== requestRef.current || turnId !== latestTurnRef.current) return;
+        if (!saved.draft || saved.draft.id !== source.id || saved.draft.revision <= source.revision
+          || saved.draft.targetId !== source.targetId || saved.draft.targetVersion !== source.targetVersion) {
+          throw new Error('尚未取得本次编辑的新草稿，请核对内容后重新保存。');
+        }
+        applyState(saved, turnId);
+        current = saved.draft;
+      }
+      if (current.requestId || current.targetId !== current.targetDocument.applicationId
+        || current.targetVersion !== current.targetDocument.version || !current.targetDocument.actions[current.mode].allowed) {
+        throw new Error('当前单据已变化，请核对最新内容后提交。');
+      }
+      operation = { conversationId, kind: 'submit', body: {
+        draftId: current.id, revision: current.revision, fingerprint: current.fingerprint, clientRequestId: crypto.randomUUID(),
+      } };
+      remember(operation);
+      await performPending(operation);
+    }
     catch (reason) {
-      if (isUnknown(reason)) setNotice('结果待核对。编辑内容和原请求号已保留，请先查询回执。');
-      else { forget(); setError(errorMessage(reason)); await refresh(conversationId); }
-    } finally { endLoading(loadingOwner); }
+      if (operation && isUnknown(reason)) setNotice('结果待核对。编辑内容和原请求号已保留，请先查询回执。');
+      else {
+        if (operation) forget();
+        const value = reason as { issues?: ApiIssue[]; code?: string };
+        if (value.issues?.length) setIssues(value.issues);
+        setError(errorMessage(reason));
+        if (operation || ['CONFIRMATION_STALE', 'ACTION_NOT_ALLOWED'].includes(value.code || '')) await refresh(conversationId);
+      }
+    } finally { submittingDraftRef.current = false; endLoading(loadingOwner); }
   }
 
   const controls = <div className="lifecycle-controls">
-    {state.draft && <button type="button" onClick={() => setEditing(true)}>
+    {state.draft && <button type="button" onClick={() => setEditing(true)} disabled={loading || busy}>
       继续编辑{state.draft.mode === 'change' ? '变更' : '重提'}
     </button>}
     {pending && <button type="button" onClick={() => void recover()} disabled={loading || busy}>查询办理结果</button>}
@@ -324,28 +366,43 @@ function DocumentPanelSession({ conversationId, refreshToken, busy = false, onSe
       const docs = [...state.documents];
       if (state.selectedDocument && !docs.some((d) => d.applicationId === state.selectedDocument!.applicationId)) docs.push(state.selectedDocument);
       if (docs.length || state.querySummary) groups = [{ id: 'current', turnId: null, title: '相关差旅单据', documents: docs, total: state.querySummary?.total ?? null }];
+      if (state.draft) groups.push({ id: 'current-draft', turnId: null, kind: 'draft', title: '当前编辑草稿', documents: [], total: null, draft: state.draft });
     }
-    return groups.map((group) => <section className="travel-document-group" aria-label={group.title} key={group.id}>
-      <div className="travel-document-group-heading">{group.title}{group.total != null && <span>{group.total} 张</span>}</div>
-      {!group.documents.length && <p className="document-empty">没有找到相关单据，可以换个时间或城市继续问我。</p>}
-      {group.documents.filter((doc) => !doc.isSuperseded).map((doc) => <TravelDocumentCard key={doc.applicationId} doc={doc} options={options}
-        busy={loading || busy || Boolean(pending)} onAction={(target, name) => void proposeAction(target, name)} onPrepare={(target, mode) => void prepare(target, mode)} />)}
-    </section>);
+    const currentTurn = latestTurnId === undefined ? state.cardGroups?.at(-1)?.turnId || null : latestTurnId;
+    return groups.map((group) => {
+      // turnId controls placement; interactionTurnId preserves UI operations' origin across reloads.
+      const current = group.interactionTurnId !== undefined ? group.interactionTurnId === currentTurn
+        : group.turnId !== null ? group.turnId === currentTurn
+        : !state.cardGroups?.length && localCardTurnsRef.current.get(group.id) === currentTurn;
+      const snapshot = group.kind === 'draft' ? group.draft : null;
+      const currentDraft = Boolean(current && snapshot && state.draft?.id === snapshot.id && state.draft.revision === snapshot.revision);
+      const documents = group.documents.filter((doc) => !doc.isSuperseded).slice(0, 3);
+      return <section className="travel-document-group" aria-label={group.title} key={group.id}>
+        <div className="travel-document-group-heading">{group.title}{group.total != null && <span>{group.total} 张</span>}</div>
+        {snapshot ? <LifecycleDraftCard draft={currentDraft ? state.draft! : snapshot} options={options} current={currentDraft}
+          busy={loading || busy || Boolean(pending)} onEdit={() => setEditing(true)} onSubmit={() => setEditing(true)} /> : <>
+          {!documents.length && <p className="document-empty">没有找到相关单据，可以换个时间或城市继续问我。</p>}
+          {documents.map((doc) => <TravelDocumentCard key={doc.applicationId} doc={doc} options={options}
+            current={current && group.kind !== 'draft'} compact={documents.length > 1}
+            busy={loading || busy || Boolean(pending)} onAction={(target, name) => void proposeAction(target, name)} onPrepare={(target, mode) => void prepare(target, mode)} />)}
+          {(group.total || 0) > 3 && <button type="button" className="query-all-button" title="演示入口">查看全部查询结果</button>}
+        </>}
+      </section>;
+    });
   }
 
   useLayoutEffect(() => {
     publish({ conversationId, renderCards, controls });
-  }, [conversationId, state, options, loading, busy, pending, error, notice, publish]);
+  }, [conversationId, state, options, loading, busy, latestTurnId, pending, error, notice, publish]);
 
   return <>
     {typeof document !== 'undefined' && createPortal(<>
       {proposal && <DocumentActionDialog key={proposal.id} proposal={proposal} busy={loading || busy || Boolean(pending)} error={error}
-        onCancel={() => void cancelAction()} onConfirm={(reason) => void action(proposal, reason)}
-        onSemantic={onSemantic ? () => { setProposal(null); onSemantic(`确认作废 ${proposal.targetDocument.applicationNo}，原因：`); } : undefined} />}
+        onCancel={() => void cancelAction()} onConfirm={(reason) => void action(proposal, reason)} />}
       {state.draft && <LifecycleEditor draft={state.draft} options={options} open={editing} busy={loading || busy} locked={Boolean(pending)}
-        pendingRequestId={pending?.body.clientRequestId} optionsError={optionsError} optionsLoading={optionsLoading} issues={issues}
+        pendingRequestId={pending?.body.clientRequestId} optionsError={optionsError} optionsLoading={optionsLoading} issues={issues} generalError={error}
         onClose={() => setEditing(false)} onCancel={() => conversationId && !pending && void run(() => assistantApi.lifecycleCancelDraft(conversationId), false)}
-        onSave={(payload) => void saveDraft(payload)} onSubmit={() => void submitDraft()} onRetryOptions={() => void loadOptions()} />}
+        onSave={(payload) => void saveDraft(payload)} onSubmit={(payload) => void submitDraft(payload)} onRetryOptions={() => void loadOptions()} />}
     </>, document.body)}
   </>;
 }

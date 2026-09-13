@@ -70,48 +70,40 @@ def field_text(field,value):
 
 
 def document_text(doc):
-    names={x['data']['cityId']:x['data']['cityName'] for x in CITIES}
-    status={'S002':'待审批','S003':'审批中','S004':'已完成','S005':'已退回','S100':'已作废','UNKNOWN':'待核对'}.get(doc['status'],doc['status'])
-    lines=[f"单号 {doc['applicationNo']}｜{status}（{doc['status']}）｜版本 {doc['version']}",
-           f"事由：{doc['request'].get('remark','')}；{'当前有效' if doc['isEffective'] else '尚未生效或已失效'}",
-           trip_text(doc['request'].get('trips',[]))]
-    for location in doc.get('locations',[]):
-        places='、'.join(names.get(city,city) for city in location['cityIds'])
-        period=location['dateFrom'] if location['dateFrom']==location['dateTo'] else location['dateFrom']+' 至 '+location['dateTo']
-        kind='申报停留城市' if location['kind']=='stay' else '申报移动涉及城市'
-        lines.append(f'{period}：{kind}：{places}。'+location['explanation'])
-    if doc.get('resolvedFrom'): lines.insert(0,'原编号已被替代，已关联到当前单据。')
-    return '\n'.join(lines)
+    prefix='原编号已关联到当前单据，' if doc.get('resolvedFrom') else '已为您查询到单据信息，'
+    return prefix+'详见下方卡片。'
 
 
 def draft_text(view,doc):
     draft=view['draft']
     if doc['applicationId']!=draft['targetId']:
         raise ServiceError('DRAFT_TARGET_CHANGED','原编辑目标已被替代，请放弃旧草稿并重新核对当前单据后编辑。',409)
-    changes=draft['differences']; payload=draft['payload']
-    labels={'remark':'事由','dqydbg':'差旅类型','departmentId':'部门','payerCompanyId':'付款公司','trips':'行程'}
-    detail='\n'.join(f"{labels.get(x['field'],x['field'])}：\n修改前：{field_text(x['field'],x['before'])}\n修改后：{field_text(x['field'],x['after'])}" for x in changes) or '尚未修改字段，保留原单全部内容。'
+    changes=draft['differences']
+    labels={'remark':'出差事由','dqydbg':'差旅类型','departmentId':'部门','payerCompanyId':'付款公司','trips':'行程安排'}
     title='变更' if draft['mode']=='change' else '原号重提'
-    current='原单批准安排仍有效。' if doc['isEffective'] else ('前序批准安排仍有效。' if doc.get('currentEffectiveId') else '当前草稿不会改变单据效力。')
-    basics='；'.join(labels[key]+'：'+field_text(key,payload.get(key)) for key in ('remark','dqydbg','departmentId','payerCompanyId'))
-    return (f"已准备{title}草稿，目标单号 {doc['applicationNo']}，目标版本 {draft['targetVersion']}，草稿版本 {draft['revision']}。\n"
-            +'以下为未提交草稿，尚未生效。'+current+'\n'+basics+'\n'+trip_text(payload['trips'])+'\n差异：\n'+detail+f"\n请继续说明修改内容；核对后说“确认提交{title}”。")
+    summary=''
+    route=next((x for x in changes if x['field']=='trips'),None)
+    if route and route['before'] and route['after']:
+        old,new=route['before'][0],route['after'][0]
+        if old['cityTo']!=new['cityTo']:
+            names={x['data']['cityId']:x['data']['cityName'] for x in CITIES}
+            summary=f"，将原 {old['dateFrom']} 前往{names.get(old['cityTo'],old['cityTo'])}的行程改为前往{names.get(new['cityTo'],new['cityTo'])}"
+    if changes and not summary: summary='，已更新'+'、'.join(labels.get(x['field'],x['field']) for x in changes)
+    return f'已为您准备{title}草稿{summary}，详见下方草稿卡片。核对后可确认提交。'
 
 
 def receipt_text(view):
     receipt=view['lastReceipt']; rid=receipt['clientRequestId']; result=receipt['result']
     if receipt['status']=='UNKNOWN': return f'办理结果尚未确认，原请求号 {rid} 已保留。请再次确认同一草稿以查询该号，勿另换请求号。'
     if receipt['status']=='FAILED': return f"办理未成功，回执请求号 {rid}：{result['message']}"
-    prefix='原操作结果已查到；以下为当前单据。' if result.get('documentResolvedToCurrent') else '已取得真实业务回执。'
+    if result.get('documentResolvedToCurrent'): return '原操作结果已查到，卡片展示当前单据。'
     doc=result['document']; effective=''
     if doc.get('currentEffectiveId') and doc['currentEffectiveId']!=doc['applicationId']:
-        effective='\n前序批准安排仍有效。'
-        if doc['status']=='S100': effective+='本次变更已作废；如需再次变更，请选择当前有效单据核对可用操作。'
+        effective='前序批准安排仍有效。'
     elif doc['status']=='S100' and not doc.get('currentEffectiveId'):
-        effective='\n此单已作废，当前链没有有效差旅安排，不恢复历史版本。'
-    elif result['action'] in {'withdraw','resubmit'} and not doc['isEffective']:
-        effective='\n该申请尚未形成已批准的有效安排。'
-    return prefix+f"\n操作：{ {'withdraw':'撤回','void':'作废','change':'变更提交','resubmit':'原号重提'}.get(result['action'],result['action'])}；请求号 {rid}\n"+document_text(doc)+effective
+        effective='此差旅安排已失效，不恢复旧版本。'
+    action={'withdraw':'已撤回本次提交，可沿原单号编辑重提','void':'已作废单据','change':'已提交行程变更，等待审批','resubmit':'已沿原单号重新提交，等待审批'}.get(result['action'],'办理成功')
+    return action+'。'+effective+'详见下方单据卡片。'
 
 
 class LifecycleWorkflow:
@@ -139,7 +131,7 @@ class LifecycleWorkflow:
                 self.assistant._write(cid,lifecycle_state)
         creation=json.loads(row['state_json']); view=self.assistant.view(cid)
         def minimal(doc):
-            return {key:doc[key] for key in ('applicationId','applicationNo','status','version','documentType','actions','tripStart','tripEnd')} if doc else None
+            return {key:doc[key] for key in ('applicationId','applicationNo','status','version','documentType','actions','tripStart','tripEnd','request')} if doc else None
         context=employee_context()
         draft=view['draft']
         return dict(creationEditing=bool(lifecycle_state.get('creationEditing') or (creation.get('draft') and creation.get('flow_state') not in ('SUBMITTED','IDLE'))),
@@ -158,10 +150,69 @@ class LifecycleWorkflow:
             if retained:
                 conn.execute('UPDATE assistant_lifecycle_turns SET business_request_id=? WHERE request_id=?',(receipt_id,turn_id))
 
+    def query_answer(self,cid,question,filters,*,replay=False):
+        if replay:
+            # 旧回合仅刷新事实，不能创建当前轮卡片或覆盖当前查询结果与选择。
+            filters=Filters.model_validate(filters).model_dump(exclude_none=True)
+            filters['limit']=min(filters['limit'],3)
+            result=self.assistant.service.list_documents(filters)
+            documents=result['items']; summary=dict(filters=filters,total=result['total'])
+        else:
+            view=self.assistant.query(cid,filters); summary=view['querySummary']; documents=view['documents']
+        total=summary['total']; shown=len(documents)
+        text=(f'共查询到 {total} 张单据，目前已为您展示 {shown} 张，详见下方卡片。' if total>shown else
+              f'已为您查询到 {total} 张单据信息，详见下方卡片。' if total else '没有查询到相关差旅单据，可以换个时间或城市再查。')
+        fields=('applicationId','applicationNo','request','status','documentType','isEffective','currentEffectiveId','tripStart','tripEnd')
+        context=dict(question=question,businessDate=business_time()['date'],filters=summary['filters'],total=total,shown=shown,
+            documents=[{k:d[k] for k in fields} for d in documents],
+            cityNames={x['data']['cityId']:x['data']['cityName'] for x in CITIES})
+        return dict(handled=True,reply=text,answerContext=context)
+
+    @staticmethod
+    def query_filters(query,command):
+        filters=command.filter.model_dump(exclude_none=True) if command.filter else {}
+        if re.search(r'哪里|哪儿|何处|在哪',query):
+            day=None; today=date.fromisoformat(business_time()['date'])
+            for word,offset in [('今天',0),('明天',1),('昨天',-1)]:
+                if word in query: day=str(today+timedelta(days=offset));break
+            explicit=re.search(r'\d{4}-\d{2}-\d{2}',query)
+            if explicit: day=explicit.group()
+            if day: filters.update(dateFrom=day,dateTo=day,dateBasis='trip');filters.pop('temporal',None)
+        return filters
+
+    def void_reference(self,cid,command,target):
+        """原话和服务端选择决定目标；模型字段只能与该目标相互核对。"""
+        ordinal=re.fullmatch(r'第([一二三四五六七八九十0-9]+)张(?:申请|单据|申请单|变更单)?',target or '')
+        identifier=re.search(r'[A-Za-z0-9_.:-]+',target or '')
+        if ordinal:
+            word=ordinal[1]; digits={char:index for index,char in enumerate('一二三四五六七八九',1)}
+            if word.isdecimal(): index=int(word)
+            elif word in digits: index=digits[word]
+            elif re.fullmatch(r'[一二三四五六七八九]?十[一二三四五六七八九]?',word):
+                tens,units=word.split('十'); index=digits.get(tens,1)*10+digits.get(units,0)
+            else: raise ServiceError('OBJECT_REQUIRED','请明确当前结果中的有效序号或单号。',422)
+            reference=self.assistant.reference(cid,result_index=index)
+        elif identifier:
+            reference=identifier[0]
+        else:
+            reference=self.assistant.reference(cid)
+        doc=self.assistant.service.document(reference)
+        # 被替代编号不与重定向后的新编号互认；原引用留给业务层拒绝过期目标。
+        aliases={reference}
+        if not doc.get('resolvedFrom'): aliases.update((doc['applicationId'],doc['applicationNo']))
+        claims=[]
+        if command.reference: claims.append(command.reference)
+        if command.resultIndex is not None:
+            claims.append(self.assistant.reference(cid,result_index=command.resultIndex))
+        if any(claim not in aliases for claim in claims):
+            raise ServiceError('ACTION_TARGET_MISMATCH','解析的作废目标与您明确的单号、序号或当前选择不一致，未执行操作。请重新核对目标。',409)
+        return reference
+
     def turn(self,body):
         cid=self.conversation(body.user)
         with self.assistant.lock:
             key=fingerprint(body.model_dump())
+            cached_query_filters=None; replay_query=False
             with self.store.connection(write=True) as conn:
                 old=conn.execute('SELECT * FROM assistant_lifecycle_turns WHERE request_id=?',(body.clientRequestId,)).fetchone()
                 if old and (old['cid']!=cid or old['fingerprint']!=key):
@@ -171,11 +222,24 @@ class LifecycleWorkflow:
                     if operation or old['business_request_id']:
                         receipt=self.assistant.service.receipt(old['business_request_id'] or body.clientRequestId)
                         return dict(handled=True,reply=receipt_text({'lastReceipt':receipt}))
-                    return json.loads(old['reply_json'])
+                    cached=json.loads(old['reply_json'])
+                    if cached.get('answerContext'):
+                        cached_query_filters=cached['answerContext']['filters']; replay_query=True
+                    elif body.command.get('intent')=='QUERY':
+                        # 升级前的文本缓存没有 answerContext，也必须重新查当前可见版本。
+                        replay_query=True
+                    else:
+                        return cached
                 conn.execute('INSERT OR IGNORE INTO assistant_lifecycle_turns(request_id,cid,fingerprint,reply_json) VALUES(?,?,?,NULL)',(body.clientRequestId,cid,key))
             try:
-                command=Command.model_validate(body.command)
-                result=self._dispatch(cid,body,command)
+                if replay_query:
+                    if cached_query_filters is None:
+                        cached_query_filters=self.query_filters(body.query,Command.model_validate(body.command))
+                    # 释放写事务后只读刷新旧查询，不重建卡片，也不改变当前对象指代。
+                    result=self.query_answer(cid,body.query,cached_query_filters,replay=True)
+                else:
+                    command=Command.model_validate(body.command)
+                    result=self._dispatch(cid,body,command)
             except ValidationError:
                 result=dict(handled=True,reply='无法理解本轮办理字段。请明确单号、操作或修改内容，已有草稿仍保留。')
             except ServiceError as error:
@@ -253,18 +317,7 @@ class LifecycleWorkflow:
         if intent=='CREATE_FLOW': return fallthrough
         if intent=='HELP': return reply('可查询、查看单据，明确单号后撤回或作废，或先编辑变更／原号重提草稿再确认提交。审批中 S003 需模拟控制台正常退回。')
         if intent=='QUERY':
-            filters=command.filter.model_dump(exclude_none=True) if command.filter else {}
-            if re.search(r'哪里|哪儿|何处|在哪',query):
-                day=None; today=date.fromisoformat(business_time()['date'])
-                for word,offset in [('今天',0),('明天',1),('昨天',-1)]:
-                    if word in query: day=str(today+timedelta(days=offset));break
-                explicit=re.search(r'\d{4}-\d{2}-\d{2}',query)
-                if explicit: day=explicit.group()
-                if day: filters.update(dateFrom=day,dateTo=day,dateBasis='trip');filters.pop('temporal',None)
-            view=self.assistant.query(cid,filters)
-            summary=view['querySummary']; lines=[f"共查询到 {summary['total']} 张单据，本页显示 {len(view['documents'])} 张。"]
-            lines.extend(f"{i}. "+document_text(doc) for i,doc in enumerate(view['documents'],1))
-            return reply('\n\n'.join(lines))
+            return self.query_answer(cid,query,self.query_filters(query,command))
         if intent=='CANCEL':
             if not draft: return fallthrough
             self.assistant.cancel(cid); return reply('已放弃本地生命周期编辑，单据状态未改变。')
@@ -286,7 +339,7 @@ class LifecycleWorkflow:
             request=command.confirmation.model_dump()
             request['clientRequestId']=draft.get('requestId') or body.clientRequestId
             return reply(receipt_text(self.assistant.submit(cid,request)))
-        reference=self.assistant.reference(cid,command.reference,command.resultIndex)
+        reference=None if intent=='VOID' else self.assistant.reference(cid,command.reference,command.resultIndex)
         if intent=='DETAIL': return reply(document_text(self.assistant.detail(cid,reference)['selectedDocument']))
         if intent in {'CHANGE','RESUBMIT'}:
             doc=self.assistant.service.document(reference)
@@ -298,10 +351,12 @@ class LifecycleWorkflow:
             expected_word='撤回' if intent=='WITHDRAW' else '作废'
             identifier=r'[A-Za-z0-9_.:-]+'
             direct_reference=rf'(?:这张|这份|这个|该单|当前(?:这张|单据)?|第[一二三四五六七八九十0-9]+张|{identifier})(?:申请|单据|申请单|变更单)?'
-            labelled_reference=rf'(?:差旅申请单|差旅申请|差旅变更单|行程变更单|变更单)\s*{identifier}'
+            labelled_reference=rf'(?:差旅申请单|差旅申请|差旅变更单|行程变更单|变更单|单据|申请单|申请)\s*{identifier}'
             target=rf'(?:{direct_reference}|{labelled_reference})'
-            direct=rf'(?:(?:请|请帮我|帮我|我要|我想|我需要|现在|立即|直接)\s*)?(?:把|将)?(?:{expected_word}(?:一下)?\s*(?:{target})?|{target}\s*{expected_word}(?:一下)?)[。！!\s]*'
-            if expected_word not in query or not re.fullmatch(direct,query): return reply(f'请明确要求{expected_word}具体单据，当前未办理。')
+            direct=rf'(?:(?:请|请帮我|帮我|我要|我想|我需要|现在|立即|直接)\s*)?(?:把|将)?(?:{expected_word}(?:一下)?\s*(?P<after>{target})?|(?P<before>{target})\s*{expected_word}(?:一下)?)[。！!\s]*'
+            authorized=re.fullmatch(direct,query)
+            if expected_word not in query or not authorized: return reply(f'请明确要求{expected_word}具体单据，当前未办理。')
+            if intent=='VOID': reference=self.void_reference(cid,command,authorized['after'] or authorized['before'])
             with self.store.connection() as conn:
                 pending=conn.execute('SELECT operation_json FROM assistant_lifecycle_requests WHERE cid=? AND request_id=?',(cid,body.clientRequestId)).fetchone()
             if pending:
@@ -310,12 +365,15 @@ class LifecycleWorkflow:
             if doc['status']=='S003': return reply('这张单据正在审批中（S003），员工不能撤回或代替审批；请在模拟控制台正常退回后再继续。')
             if intent=='VOID' and doc['documentType']=='CHANGE' and doc['status']=='S002':
                 return reply('这张变更仍在待审批（S002），需要先明确撤回，取得撤回回执后再单独作废，当前尚未作废。')
+            if intent=='VOID':
+                return reply(receipt_text(self.assistant.action(cid,dict(reference=reference,action='void',
+                    expectedVersion=doc['version'],clientRequestId=body.clientRequestId,reason=reason))))
             # 首次表达只准备待确认卡片，UI 弹窗或语义再次确认后才真正办理。
             view=self.assistant.propose_action(cid,dict(reference=reference,action=intent.lower(),reason=reason))
             effect=('撤回后进入 S005，可沿原单号编辑重提。' if intent=='WITHDRAW' else
                 '仅作废本次未生效变更，前序批准安排仍有效，可重新发起变更。' if doc['documentType']=='CHANGE' and doc['status']=='S005' else
                 '作废后这份差旅安排失效，不恢复旧版本。')
-            return reply(f"请核对单据 {doc['applicationNo']}。{effect}\n"
+            return reply(f"请核对下方单据。{effect}\n"
                          +f"点击卡片上的{expected_word}按钮，或回复“确认{expected_word}”。"
                          +(('\n已记录作废原因：'+reason) if reason else ('\n作废原因可选填，也可以用对话补充。' if intent=='VOID' else '')))
         return reply('请明确需要办理的单据与操作。')

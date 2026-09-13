@@ -56,9 +56,9 @@ export function DraftCard({
 
       {failed && <p className="draft-failure-note"><CircleAlert size={16} /><span><strong>完整信息已保留为草稿。</strong>可前往差旅系统进一步编辑；当前演示仅说明后续流程，暂不提供跳转编辑。</span></p>}
 
-      {current && !failed && !submitted && <div className="draft-actions">
-        <button type="button" onClick={onEdit} disabled={busy || interactionLocked}><FilePenLine size={15} />编辑申请</button>
-        <button type="button" className="primary" onClick={onSubmit} disabled={busy || !state.canSubmit || state.synchronized === false}>
+      {!isFailure(state.lastSubmission?.status) && state.phase !== 'SUBMITTED' && <div className="draft-actions">
+        <button type="button" onClick={onEdit} disabled={!current || busy || interactionLocked}><FilePenLine size={15} />编辑申请</button>
+        <button type="button" className="primary" onClick={onSubmit} disabled={!current || busy || !state.canSubmit || state.synchronized === false}>
           <Send size={15} />{submitLabel}
         </button>
       </div>}

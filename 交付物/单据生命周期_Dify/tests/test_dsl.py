@@ -80,7 +80,7 @@ class DSLTests(unittest.TestCase):
         for code,body in [(502,'oops'),(200,'{}'),(200,'{"handled":"false","reply":""}'),(200,'{"handled":true,"reply":""}')]:
             result=module.main(body,code)
             self.assertEqual(result['handled'],'true'); self.assertTrue(result['reply'])
-        self.assertEqual(module.main('{"handled":false,"reply":""}',200),{'handled':'false','reply':''})
-        self.assertEqual(module.main('{"handled":true,"reply":"查到2张单据"}',200),{'handled':'true','reply':'查到2张单据'})
+        self.assertEqual(module.main('{"handled":false,"reply":""}',200),{'handled':'false','reply':'','answer_ready':'false','answer_context':''})
+        self.assertEqual(module.main('{"handled":true,"reply":"查到2张单据"}',200),{'handled':'true','reply':'查到2张单据','answer_ready':'false','answer_context':''})
 
 if __name__=='__main__':unittest.main()

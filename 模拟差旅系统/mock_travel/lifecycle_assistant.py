@@ -126,21 +126,31 @@ class LifecycleAssistant:
                     match=self.service.list_documents(dict(keyword=doc['applicationId'],dateFrom=filters['dateFrom'],dateTo=filters['dateTo']))
                     if match['items']: doc=match['items'][0]
                 if doc['applicationId'] not in {d['applicationId'] for d in visible}: visible.append(doc)
-            groups.append({k:v for k,v in group.items() if k!='references'} | dict(documents=visible))
+            projected={k:v for k,v in group.items() if k not in {'references','draft'}} | dict(documents=visible[:3])
+            snapshot=deepcopy(group.get('draft'))
+            if snapshot:
+                target=self.service.document(snapshot['targetId'])
+                if target['applicationId']==snapshot['targetId'] and target['version']==snapshot['targetVersion']:
+                    snapshot['targetDocument']=target; projected['draft']=snapshot
+            groups.append(projected)
         pending=deepcopy(state.get('pendingAction'))
         if pending: pending['targetDocument']=self.service.document(pending['reference'])
         return dict(documents=documents,selectedDocument=selected,draft=draft,lastReceipt=receipt,querySummary=state['querySummary'],
                     cardGroups=groups,pendingAction=pending)
 
-    def _present(self,cid,state,references,title,filters=None,total=None):
+    def _present(self,cid,state,references,title,filters=None,total=None,kind='document'):
         # 仅保存引用，读卡片时重新解析当前可见版本，不能通过旧回复泄露旧版内容。
         with self.store.connection() as conn:
             turn=conn.execute("SELECT id FROM assistant_turns WHERE conversation_id=? AND status='running'",(cid,)).fetchone()
+            latest=conn.execute("SELECT turn_id FROM assistant_messages WHERE conversation_id=? AND role='user' ORDER BY sequence DESC LIMIT 1",(cid,)).fetchone()
         turn_id=turn['id'] if turn else None
+        interaction_turn_id=turn_id or (latest['turn_id'] if latest else None)
         groups=state.setdefault('cardGroups',[])
         # UI 临时卡片由下一次卡片回复接替，避免操作完成后仍提示待办理。
         groups[:]=[g for g in groups if g['turnId'] is not None and g['turnId']!=turn_id]
-        groups.append(dict(id=uuid4().hex,turnId=turn_id,title=title,references=references,filters=filters or {},total=total))
+        group=dict(id=uuid4().hex,turnId=turn_id,interactionTurnId=interaction_turn_id,title=title,references=references[:3],filters=filters or {},total=total,kind=kind)
+        if kind=='draft' and state['draft']: group['draft']=deepcopy(state['draft'])
+        groups.append(group)
 
     def propose_action(self,cid,body):
         body=ProposeAction.model_validate(body).model_dump()
@@ -166,12 +176,14 @@ class LifecycleAssistant:
 
     def query(self,cid,filters):
         with self.lock:
-            state=self._read(cid); result=self.service.list_documents(Filters.model_validate(filters).model_dump(exclude_none=True))
+            state=self._read(cid); filters=Filters.model_validate(filters).model_dump(exclude_none=True)
+            filters['limit']=min(filters['limit'],3)
+            result=self.service.list_documents(filters)
             state['resultIds']=[doc['applicationId'] for doc in result['items']]
             # 新结果集不继承上一次单据指代；编辑草稿仍独立保留。
             state['selectedReference']=None
             state['querySummary']=dict(filters=filters,total=result['total'],limit=result['limit'],offset=result['offset'])
-            self._present(cid,state,state['resultIds'],'相关差旅单据',filters,result['total'])
+            self._present(cid,state,state['resultIds'],'相关差旅单据',filters,result['total'],kind='query')
             self._write(cid,state)
             return self.view(cid)
 
@@ -201,7 +213,7 @@ class LifecycleAssistant:
             existing=state['draft']
             if existing:
                 if existing['targetId']==doc['applicationId'] and existing['mode']==mode:
-                    self._present(cid,state,[existing['targetId']],'正在编辑的单据')
+                    self._present(cid,state,[existing['targetId']],'行程草稿',kind='draft')
                     self._write(cid,state); return self.view(cid)
                 raise ServiceError('DRAFT_EXISTS','已有另一份生命周期草稿，请继续编辑或明确放弃后再准备新草稿。',409)
             eligibility=doc['actions'][mode]
@@ -210,7 +222,7 @@ class LifecycleAssistant:
                        payload=deepcopy(doc['request']),original=deepcopy(doc['request']),differences=[])
             draft['fingerprint']=fingerprint(draft)
             state['draft']=draft; state['selectedReference']=doc['applicationId']
-            self._present(cid,state,[doc['applicationId']],'正在编辑的单据')
+            self._present(cid,state,[doc['applicationId']],'行程草稿',kind='draft')
             self._write(cid,state)
             return self.view(cid)
 
@@ -224,7 +236,7 @@ class LifecycleAssistant:
             draft['payload']=updated; draft['revision']+=1
             draft['differences']=differences(draft['original'],updated)
             draft.pop('fingerprint'); draft['fingerprint']=fingerprint(draft)
-            self._present(cid,state,[draft['targetId']],'正在编辑的单据')
+            self._present(cid,state,[draft['targetId']],'行程草稿',kind='draft')
             self._write(cid,state); return self.view(cid)
 
     @staticmethod
@@ -299,7 +311,7 @@ class LifecycleAssistant:
             else: state['draft'].pop('requestId',None)
         if receipt['status']=='SUCCEEDED':
             state['selectedReference']=receipt['result']['document']['applicationId']
-            self._present(cid,state,[state['selectedReference']],'办理结果')
+            self._present(cid,state,[state['selectedReference']],'办理结果',kind='receipt')
         pending=state.get('pendingAction')
         if pending and pending['reference']==op['reference'] and pending['action']==op['action']:
             state['pendingAction']=None

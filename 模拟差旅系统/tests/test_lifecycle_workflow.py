@@ -27,7 +27,8 @@ def test_initial_query_context_and_second_result(env):
     assert r.json()['creationEditing'] is False
     assert turn(env,'查我的申请',{'intent':'QUERY'})['handled']
     reply=turn(env,'查看第二张',{'intent':'DETAIL','resultIndex':2})['reply']
-    assert a['applicationNo'] in reply and b['applicationNo'] not in reply
+    assert c.get(url).json()['selectedDocument']['applicationId']==a['applicationId']
+    assert a['applicationNo'] not in reply and b['applicationNo'] not in reply
     assert app.state.assistant_manager.store.private_conversation(cid)['state_json']=='{}'
 
 @pytest.mark.parametrize('query,intent',[('不要撤回','WITHDRAW'),('能作废吗','VOID'),('撤销刚才的修改','VOID'),('帮我审批通过','CONFIRM')])
@@ -72,7 +73,7 @@ def test_dual_drafts_ambiguous_confirm_and_query_interleaving(env):
     turn(env,'查询申请',{'intent':'QUERY'})
     command={'intent':'CONFIRM','confirmation':{k:v for k,v in confirm(d).items() if k!='clientRequestId'}}
     reply=turn(env,'确认提交变更',command,'confirmed')
-    assert reply['handled'] and '回执' in reply['reply']
+    assert reply['handled'] and c.get(url).json()['lastReceipt']['status']=='SUCCEEDED'
     again=turn(env,'确认提交变更',command,'confirmed')
     assert again==reply and app.state.lifecycle.list_documents({})['total']==2
 
@@ -150,7 +151,8 @@ def test_unknown_submission_preserves_request_and_recovers_real_receipt(env,monk
     assert c.delete(url+'/draft').status_code==409
     monkeypatch.setattr(service,'receipt',real)
     result=turn(env,'确认提交变更',dict(intent='CONFIRM'))
-    assert 'uncertain' in result['reply'] and '回执' in result['reply']
+    assert c.get(url).json()['lastReceipt']['clientRequestId']=='uncertain'
+    assert c.get(url).json()['lastReceipt']['status']=='SUCCEEDED'
     assert c.get(url).json()['draft'] is None and service.list_documents({})['total']==2
 
 
@@ -166,7 +168,8 @@ def test_unknown_withdraw_after_commit_replays_exact_original_operation(env,monk
     assert '尚未确认' in first['reply']
     monkeypatch.setattr(service,'receipt',real)
     second=turn(env,'确认撤回',command,'unknown-withdraw')
-    assert '真实业务回执' in second['reply']
+    assert '已撤回' in second['reply']
+    assert c.get(url).json()['lastReceipt']['clientRequestId']=='unknown-withdraw'
     assert service.document(a['applicationId'])['status']=='S005'
 
 
@@ -194,7 +197,7 @@ def test_unknown_action_recovers_original_id_on_new_dify_run(env,monkeypatch):
     turn(env,'确认撤回',dict(intent='WITHDRAW',reference=a['applicationId']),'lost-original')
     monkeypatch.setattr(service,'receipt',real)
     reply=turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']),'new-dify-run')['reply']
-    assert 'lost-original' in reply and '真实业务回执' in reply
+    assert '已撤回' in reply and c.get(url).json()['lastReceipt']['clientRequestId']=='lost-original'
     with app.state.store.connection() as conn:
         assert conn.execute('SELECT count(*) FROM lifecycle_receipts').fetchone()[0]==1
 
@@ -221,7 +224,8 @@ def test_replayed_success_projects_current_visible_document(env):
     a=service.document(a['applicationId']); a=complete(service,operation(service,a,'resubmit',payload()))
     newer=complete(service,operation(service,a,'change',payload('DEMO_BEIJING')))
     reply=turn(env,'确认撤回',command,'withdraw-replay')['reply']
-    assert '以下为当前单据' in reply and newer['applicationNo'] in reply
+    assert '当前单据' in reply
+    assert c.get(url).json()['lastReceipt']['result']['document']['applicationNo']==newer['applicationNo']
     assert a['applicationNo'] not in reply
 
 
@@ -242,10 +246,10 @@ def test_edit_after_query_uses_draft_target_and_not_selection(env):
     app,c,cid,url=env;a,d=prepared(env);b=complete(app.state.lifecycle,create(app.state.lifecycle))
     turn(env,'查询申请',{'intent':'QUERY'})
     result=turn(env,'事由改为目标A会议',{'intent':'EDIT','patch':{'remark':'目标A会议'}})
-    assert a['applicationNo'] in result['reply'] and b['applicationNo'] not in result['reply']
+    assert c.get(url).json()['cardGroups'][-1]['draft']['targetId']==a['applicationId']
     turn(env,'查看另一张',{'intent':'DETAIL','reference':b['applicationId']})
     result=turn(env,'事由改为目标A复盘',{'intent':'EDIT','patch':{'remark':'目标A复盘'}})
-    assert a['applicationNo'] in result['reply'] and b['applicationNo'] not in result['reply']
+    assert c.get(url).json()['cardGroups'][-1]['draft']['targetId']==a['applicationId']
     assert c.get(url).json()['draft']['targetId']==a['applicationId']
 
 
@@ -268,10 +272,7 @@ def test_inquiry_conditional_and_quoted_action_never_write(env,query):
 def test_direct_action_accepts_common_document_label_before_number(env,label):
     app,c,cid,url=env; a=complete(app.state.lifecycle,create(app.state.lifecycle))
     result=turn(env,'请作废'+label+' '+a['applicationNo'],dict(intent='VOID',reference=a['applicationNo']))
-    assert '确认作废' in result['reply']
-    assert app.state.lifecycle.document(a['applicationId'])['status']=='S004'
-    result=turn(env,'确认作废',dict(intent='CONFIRM'))
-    assert '真实业务回执' in result['reply']
+    assert '已作废' in result['reply']
     assert app.state.lifecycle.document(a['applicationId'])['status']=='S100'
 
 
@@ -289,11 +290,12 @@ def test_recovery_turn_replay_projects_original_receipt_current_document(env,mon
     newer=complete(service,operation(service,a,'change',payload('DEMO_BEIJING')))
     restarted=TestClient(create_app(app.state.store.path));user=app.state.assistant_manager.store.private_conversation(cid)['dify_user']
     result=restarted.post('/workflow/v1/lifecycle/turn',json=dict(user=user,query='撤回这张',command=command,clientRequestId='recovery-run')).json()
-    assert newer['applicationNo'] in result['reply'] and '以下为当前单据' in result['reply']
+    assert '当前单据' in result['reply']
+    assert restarted.get(url).json()['lastReceipt']['result']['document']['applicationNo']==newer['applicationNo']
     assert a['applicationNo'] not in result['reply']
 
 
-def test_today_where_query_uses_exact_day_and_names_inferred_city(env):
+def test_today_where_query_passes_exact_day_and_raw_details_to_llm(env):
     from datetime import date,timedelta
     from mock_travel.catalog import business_time
     app,c,cid,url=env;today=date.fromisoformat(business_time()['date'])
@@ -301,7 +303,9 @@ def test_today_where_query_uses_exact_day_and_names_inferred_city(env):
     result=turn(env,'查一下我今天在哪里出差，对应哪张申请？',{'intent':'QUERY','filter':{'temporal':'current'}})
     state=c.get(url).json(); assert state['querySummary']['filters']['dateFrom']==str(today)
     assert state['querySummary']['filters']['dateTo']==str(today)
-    assert a['applicationNo'] in result['reply'] and '上海' in result['reply'] and '申报停留' in result['reply']
+    assert result['answerContext']['documents'][0]['applicationNo']==a['applicationNo']
+    assert result['answerContext']['documents'][0]['request']['trips']==a['request']['trips']
+    assert 'locations' not in result['answerContext']['documents'][0]
     assert state['documents'][0]['locations'][0]['kind']=='stay'
 
 
@@ -312,12 +316,13 @@ def test_explicit_new_application_confirmation_never_submits_lifecycle(env):
     assert c.get(url).json()['draft']==d and app.state.lifecycle.list_documents({})['total']==1
 
 
-def test_draft_is_not_presented_as_effective_and_differences_are_readable(env):
+def test_draft_card_contains_updated_fields_without_effective_claim_in_reply(env):
     app,c,cid,url=env;a,d=prepared(env)
     result=turn(env,'改为研发部和短期异地办公',{'intent':'EDIT','patch':{'departmentId':'DEMO_DEPT_002','dqydbg':'Y','tripUpdates':[{'index':2,'dateFrom':'2026-01-06'}]}})
-    assert '未提交草稿' in result['reply'] and '尚未生效' in result['reply']
-    assert '原单批准安排仍有效' in result['reply']
-    assert '演示研发部' in result['reply'] and '短期异地办公' in result['reply']
+    assert '草稿' in result['reply'] and '当前有效' not in result['reply']
+    draft=c.get(url).json()['cardGroups'][-1]['draft']
+    assert draft['payload']['departmentId']=='DEMO_DEPT_002' and draft['payload']['dqydbg']=='Y'
+    assert draft['targetDocument']['isEffective'] is True
     assert 'DEMO_DEPT_002' not in result['reply'] and 'dateFrom' not in result['reply']
 
 
@@ -331,10 +336,12 @@ def test_ordinary_withdraw_and_resubmit_explain_no_approved_arrangement(env):
     app,c,cid,url=env; a=create(app.state.lifecycle)
     turn(env,'撤回这张',dict(intent='WITHDRAW',reference=a['applicationId']))
     withdrawn=turn(env,'确认撤回',dict(intent='WITHDRAW',reference=a['applicationId']),'ordinary-withdraw')
-    assert 'S005' in withdrawn['reply'] and '尚未形成已批准的有效安排' in withdrawn['reply']
+    doc=c.get(url).json()['lastReceipt']['result']['document']
+    assert doc['status']=='S005' and not doc['isEffective']
     turn(env,'沿原号重提这张',dict(intent='RESUBMIT',reference=a['applicationId']))
     resubmitted=turn(env,'确认提交原号重提',{'intent':'CONFIRM'},'ordinary-resubmit')
-    assert 'S002' in resubmitted['reply'] and '尚未形成已批准的有效安排' in resubmitted['reply']
+    doc=c.get(url).json()['lastReceipt']['result']['document']
+    assert doc['status']=='S002' and not doc['isEffective']
 
 
 @pytest.mark.parametrize('query',["他说'撤销刚才的修改'",'撤销刚才的修改要收费','撤销刚才的修改之前先备份'])
@@ -349,4 +356,5 @@ def test_old_number_detail_explains_current_document_resolution(env):
     app,c,cid,url=env;service=app.state.lifecycle;a=complete(service,create(service))
     newer=complete(service,operation(service,a,'change',payload('DEMO_BEIJING')))
     reply=turn(env,'查看'+a['applicationNo']+'的详情',dict(intent='DETAIL',reference=a['applicationNo']))['reply']
-    assert '原编号' in reply and '当前单据' in reply and newer['applicationNo'] in reply
+    assert '原编号' in reply and '当前单据' in reply
+    assert c.get(url).json()['selectedDocument']['applicationNo']==newer['applicationNo']

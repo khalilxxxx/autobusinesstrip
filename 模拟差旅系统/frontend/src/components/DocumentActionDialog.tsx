@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, LoaderCircle } from 'lucide-react';
 import type { LifecyclePendingAction } from '../types';
 
-export function DocumentActionDialog({ proposal, busy, error, onCancel, onConfirm, onSemantic }: {
+export function DocumentActionDialog({ proposal, busy, error, onCancel, onConfirm }: {
   proposal: LifecyclePendingAction; busy: boolean; error: string;
-  onCancel: () => void; onConfirm: (reason: string) => void; onSemantic?: () => void;
+  onCancel: () => void; onConfirm: (reason: string) => void;
 }) {
   const [reason, setReason] = useState(proposal.reason || '');
   const ref = useRef<HTMLDivElement>(null);
@@ -37,7 +37,6 @@ export function DocumentActionDialog({ proposal, busy, error, onCancel, onConfir
       {error && <p className="delete-dialog-error" role="alert"><AlertCircle size={16} />{error}</p>}
       <div className="delete-dialog-actions">
         <button ref={cancelRef} type="button" onClick={onCancel} disabled={busy}>取消</button>
-        {!withdraw && onSemantic && <button type="button" disabled={busy} onClick={onSemantic}>用对话说明</button>}
         <button type="button" className="danger" disabled={busy} onClick={() => onConfirm(reason.trim())}>{busy && <LoaderCircle size={15} className="spin" />}{withdraw ? '确认撤回' : '确认作废'}</button>
       </div>
     </div>

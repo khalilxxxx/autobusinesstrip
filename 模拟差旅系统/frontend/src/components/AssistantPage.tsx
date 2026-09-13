@@ -434,6 +434,9 @@ export function AssistantPage() {
     || (conversation && activeTurn?.conversationId === conversation.id && activeTurn.status === 'running'),
   );
   const pageLocked = busy || Boolean(editingDraft) || Boolean(deleteTarget);
+  const latestMessage = conversation?.messages.at(-1);
+  const latestTurnId = optimistic ? `pending:${optimistic.requestId}`
+    : activeTurn?.id || latestMessage?.turnId || latestMessage?.id || null;
   const submission = conversation?.state.lastSubmission;
   const matchingSnapshotMessages = conversation?.messages.filter((message) => sameDraft(message.draftState, conversation.state)) || [];
   const latestDraftMessageId = matchingSnapshotMessages[matchingSnapshotMessages.length - 1]?.id;
@@ -484,7 +487,7 @@ export function AssistantPage() {
 
       <main className="assistant-main">
         <DocumentPanel conversationId={conversation?.id || null} refreshToken={`${conversation?.updatedAt || ''}:${conversation?.messages.length || 0}`}
-          busy={pageLocked} onSemantic={(text) => { setInput(text); window.setTimeout(() => composerRef.current?.focus(), 0); }}>
+          busy={pageLocked} latestTurnId={latestTurnId}>
         <header className="chat-header">
           <div>
             <h1>{conversation?.title || '新的差旅申请'}</h1>
@@ -518,7 +521,7 @@ export function AssistantPage() {
                     )} /></div>
                     {message.draftState?.draft && <DraftCard
                       state={message.id === latestDraftMessageId ? conversation.state : message.draftState}
-                      current={message.id === latestDraftMessageId}
+                      current={message.id === latestDraftMessageId && (message.turnId || message.id) === latestTurnId}
                       busy={pageLocked}
                       onEdit={openDraftEditor}
                       onSubmit={submitCurrentCard}
